@@ -848,7 +848,8 @@ export default function App() {
   const [zoomedFabric, setZoomedFabric] = useState<any | null>(null); // For fabric pattern zoom lightbox preview
 
   // GitHub integration states loaded from/saved to localStorage
-  const [ghToken, setGhToken] = useState(() => localStorage.getItem('gh_sync_token') || '');
+  // Note: the GitHub token itself is no longer handled here - it lives only
+  // as a server-side secret (GITHUB_PAT) and is never sent to or stored in the browser.
   const [ghOwner, setGhOwner] = useState(() => localStorage.getItem('gh_sync_owner') || 'nilam1978');
   const [ghRepo, setGhRepo] = useState(() => localStorage.getItem('gh_sync_repo') || 'wonder-pads');
   const [ghBranch, setGhBranch] = useState(() => localStorage.getItem('gh_sync_branch') || 'main');
@@ -1586,8 +1587,8 @@ export default function App() {
 
   // Publish changes to GitHub helper
   const publishToGithub = async () => {
-    if (!ghToken || !ghOwner || !ghRepo) {
-      setAdminError('Please fill in your GitHub PAT, Owner, and Repository name in the GitHub Sync section.');
+    if (!ghOwner || !ghRepo) {
+      setAdminError('Please fill in your GitHub Owner and Repository name in the GitHub Sync section.');
       return;
     }
 
@@ -1627,7 +1628,6 @@ export default function App() {
           'X-Admin-Password': activePassword
         },
         body: JSON.stringify({
-          githubToken: ghToken,
           owner: ghOwner,
           repo: ghRepo,
           branch: ghBranch,
@@ -1638,7 +1638,7 @@ export default function App() {
       const data = await res.json();
       if (res.ok && data.success) {
         // Save GitHub configuration locally to avoid retyping in future sessions
-        localStorage.setItem('gh_sync_token', ghToken);
+        // (the token itself is never stored here - it lives server-side only)
         localStorage.setItem('gh_sync_owner', ghOwner);
         localStorage.setItem('gh_sync_repo', ghRepo);
         localStorage.setItem('gh_sync_branch', ghBranch);
@@ -8052,8 +8052,6 @@ export default function App() {
                   setIsLoadingPhotos={setIsLoadingPhotos}
                   publishToGithub={publishToGithub}
                   isPublishingToGithub={isPublishingToGithub}
-                  ghToken={ghToken}
-                  setGhToken={setGhToken}
                   ghOwner={ghOwner}
                   setGhOwner={setGhOwner}
                   ghRepo={ghRepo}
@@ -10295,23 +10293,8 @@ export default function App() {
                                 <span className="transition-transform group-open:rotate-180 text-[9px] text-zinc-400">▼</span>
                               </summary>
                               <div className="p-2.5 border-t border-zinc-150 bg-white space-y-2 text-xs">
-                                <div>
-                                  <label className="text-[9px] text-zinc-500 font-extrabold uppercase block mb-0.5">
-                                    GitHub Personal Access Token (PAT)
-                                  </label>
-                                  <input
-                                    type="password"
-                                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                                    value={ghToken}
-                                    onChange={(e) => {
-                                      setGhToken(e.target.value);
-                                      localStorage.setItem('gh_sync_token', e.target.value);
-                                    }}
-                                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50 focus:bg-white focus:ring-1 focus:ring-[#7D8F7D] focus:border-[#7D8F7D] transition-all"
-                                  />
-                                  <span className="text-[8.5px] text-zinc-400 leading-normal block mt-0.5">
-                                    Needs <code className="font-mono bg-zinc-100 px-1 rounded">repo</code> scope. Kept secure locally in your browser.
-                                  </span>
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[9px] text-emerald-800 leading-relaxed">
+                                  🔒 GitHub token is configured server-side (GITHUB_PAT secret) - not stored in the browser.
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2">

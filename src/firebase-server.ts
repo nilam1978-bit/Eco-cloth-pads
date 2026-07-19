@@ -3,6 +3,39 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+
+/**
+ * Password security helpers.
+ * All admin passwords are hashed with bcrypt before being stored anywhere
+ * (local JSON file or Firestore). Plain-text passwords are never persisted.
+ */
+
+// Detects an existing bcrypt hash (format: $2a$10$..., $2b$10$..., etc.)
+export function isBcryptHash(value: unknown): boolean {
+  return typeof value === 'string' && /^\$2[aby]\$\d{2}\$/.test(value);
+}
+
+// Hashes a plain-text password for storage
+export function hashPassword(plain: string): string {
+  return bcrypt.hashSync(plain, 10);
+}
+
+// Verifies a plain-text password against whatever is stored.
+// Supports bcrypt hashes (current/normal case) and falls back to a direct
+// string comparison for any legacy plain-text password that hasn't been
+// re-saved yet (it will get hashed automatically the next time settings are saved).
+export function verifyPassword(plainInput: string | undefined | null, stored: string | undefined | null): boolean {
+  if (!plainInput || !stored) return false;
+  if (isBcryptHash(stored)) {
+    try {
+      return bcrypt.compareSync(plainInput, stored);
+    } catch {
+      return false;
+    }
+  }
+  return plainInput === stored;
+}
 
 const getDirname = () => {
   try {
@@ -241,6 +274,18 @@ export async function getDbData(): Promise<any> {
  * Saves full database state to Firestore and updates local JSON file as backup
  */
 export async function saveDbData(data: any): Promise<boolean> {
+  // Hash the admin password before it ever touches disk or Firestore.
+  // If it's already a bcrypt hash (unchanged from last save), leave it as-is.
+  if (data?.settings?.adminPassword && !isBcryptHash(data.settings.adminPassword)) {
+    data = {
+      ...data,
+      settings: {
+        ...data.settings,
+        adminPassword: hashPassword(data.settings.adminPassword)
+      }
+    };
+  }
+
   // Always update the local JSON file as a reliable backup/fallback
   writeLocalDb(data);
 

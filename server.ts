@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import { getDbData, saveDbData } from './src/firebase-server.js';
+import { getDbData, saveDbData, verifyPassword } from './src/firebase-server.js';
 
 dotenv.config();
 
@@ -42,7 +42,14 @@ const DEFAULT_PASSWORD = 'wonderpads2026';
 app.get('/api/db', async (req, res) => {
   try {
     const db = await getDbData();
-    res.json(db);
+    // Never send the admin password (hashed or not) to the browser.
+    // The client doesn't need it - it only ever uses the password the
+    // person actually types in during login.
+    const safeDb = {
+      ...db,
+      settings: db.settings ? { ...db.settings, adminPassword: undefined } : db.settings
+    };
+    res.json(safeDb);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -104,11 +111,11 @@ app.get('/api/firebase-status', async (req, res) => {
 
 // API: Save DB
 app.post('/api/db', async (req, res) => {
-  const adminPasswordHeader = req.headers['x-admin-password'];
+  const adminPasswordHeader = req.headers['x-admin-password'] as string | undefined;
   const db = await getDbData();
   const currentPassword = db.settings?.adminPassword || DEFAULT_PASSWORD;
 
-  if (adminPasswordHeader !== currentPassword) {
+  if (!verifyPassword(adminPasswordHeader, currentPassword)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
@@ -129,7 +136,7 @@ app.post('/api/admin/login', async (req, res) => {
     const { password } = req.body;
     const db = await getDbData();
     const currentPassword = db.settings?.adminPassword || DEFAULT_PASSWORD;
-    if (password === currentPassword) {
+    if (verifyPassword(password, currentPassword)) {
       res.json({ success: true });
       return;
     }
@@ -246,11 +253,11 @@ app.get('/api/media/photos', async (req, res) => {
 
 // API: Media R2 Upload
 app.post('/api/media/upload', async (req, res) => {
-  const adminPasswordHeader = req.headers['x-admin-password'];
+  const adminPasswordHeader = req.headers['x-admin-password'] as string | undefined;
   const db = await getDbData();
   const currentPassword = db.settings?.adminPassword || DEFAULT_PASSWORD;
 
-  if (adminPasswordHeader !== currentPassword) {
+  if (!verifyPassword(adminPasswordHeader, currentPassword)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
@@ -313,17 +320,27 @@ app.post('/api/media/upload', async (req, res) => {
 
 // API: GitHub Publish
 app.post('/api/github/publish', async (req, res) => {
-  const adminPasswordHeader = req.headers['x-admin-password'];
+  const adminPasswordHeader = req.headers['x-admin-password'] as string | undefined;
   const db = await getDbData();
   const currentPassword = db.settings?.adminPassword || DEFAULT_PASSWORD;
 
-  if (adminPasswordHeader !== currentPassword) {
+  if (!verifyPassword(adminPasswordHeader, currentPassword)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
+  // The GitHub token now lives only as a server secret (GITHUB_PAT) - it is
+  // never sent from or stored in the browser.
+  const githubToken = process.env.GITHUB_PAT;
+  if (!githubToken) {
+    res.status(500).json({
+      error: 'GITHUB_PAT is not configured on the server. Add it as a secret/environment variable to enable GitHub publishing.'
+    });
+    return;
+  }
+
   try {
-    const { githubToken, owner, repo, branch, commitMessage } = req.body;
+    const { owner, repo, branch, commitMessage } = req.body;
     const dbContent = JSON.stringify(db, null, 2);
     const base64Content = Buffer.from(dbContent).toString('base64');
     const pathInRepo = 'src/customizer-db.json';

@@ -13,6 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1085.0",
     "@google/genai": "^0.11.0",
+    "bcryptjs": "^2.4.3",
     "cloudinary": "^2.5.1",
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^5.0.6",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

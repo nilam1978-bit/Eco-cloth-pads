@@ -59,8 +59,6 @@ interface AdminUnifiedProps {
 
   publishToGithub: () => Promise<void>;
   isPublishingToGithub: boolean;
-  ghToken: string;
-  setGhToken: (val: string) => void;
   ghOwner: string;
   setGhOwner: (val: string) => void;
   ghRepo: string;
@@ -124,8 +122,6 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
 
   publishToGithub,
   isPublishingToGithub,
-  ghToken,
-  setGhToken,
   ghOwner,
   setGhOwner,
   ghRepo,
@@ -1832,18 +1828,8 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                   <span className="transition-transform group-open:rotate-180 text-[8px] text-zinc-400">▼</span>
                 </summary>
                 <div className="p-2.5 border-t border-zinc-150 bg-white space-y-2 text-xs">
-                  <div>
-                    <label className="text-[8px] text-zinc-500 font-extrabold uppercase block">GitHub PAT</label>
-                    <input
-                      type="password"
-                      placeholder="ghp_..."
-                      value={ghToken}
-                      onChange={(e) => {
-                        setGhToken(e.target.value);
-                        localStorage.setItem('gh_sync_token', e.target.value);
-                      }}
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50 font-mono"
-                    />
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[9px] text-emerald-800 leading-relaxed">
+                    🔒 GitHub token is configured server-side (GITHUB_PAT secret) - not stored in the browser.
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
