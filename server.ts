@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { getDbData, saveDbData, verifyPassword } from './src/firebase-server.js';
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const getDirname = () => {
   try {
@@ -147,17 +147,27 @@ app.post('/api/admin/login', async (req, res) => {
 });
 
 let s3Client: S3Client | null = null;
+let cachedAccessKeyId: string | undefined = undefined;
+let cachedSecretAccessKey: string | undefined = undefined;
 
 function getS3Client() {
-  if (!s3Client) {
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const endpoint = process.env.R2_ENDPOINT;
+  const bucketName = process.env.R2_BUCKET_NAME;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const endpoint = process.env.R2_ENDPOINT;
 
-    if (!bucketName || !accessKeyId || !secretAccessKey || !endpoint) {
-      return null;
-    }
+  if (!bucketName || !accessKeyId || !secretAccessKey || !endpoint) {
+    console.log('R2 client initialization skipped: missing environment variables');
+    return null;
+  }
+
+  // If credentials changed or client not created yet, instantiate new S3Client
+  if (!s3Client || cachedAccessKeyId !== accessKeyId || cachedSecretAccessKey !== secretAccessKey) {
+    console.log('Initializing S3Client for R2 storage:');
+    console.log('- Endpoint:', endpoint);
+    console.log('- Bucket Name:', bucketName);
+    console.log('- Access Key ID starts with:', accessKeyId.substring(0, 4));
+    console.log('- Secret Key starts with:', secretAccessKey.substring(0, 4));
 
     s3Client = new S3Client({
       region: 'auto',
@@ -167,6 +177,8 @@ function getS3Client() {
         secretAccessKey,
       },
     });
+    cachedAccessKeyId = accessKeyId;
+    cachedSecretAccessKey = secretAccessKey;
   }
   return s3Client;
 }
