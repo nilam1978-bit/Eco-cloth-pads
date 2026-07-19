@@ -210,6 +210,34 @@ async function autoMigrateIfEmpty(firestore: Firestore, localData: any): Promise
 }
 
 /**
+ * Deep helper to traverse the database state and replace any occurrences of the placeholder domain
+ * 'your-r2-bucket.com' with the user's real Cloudflare R2 public URL when configured.
+ */
+function replaceR2Placeholders(obj: any, realUrl: string | undefined): any {
+  if (!realUrl) return obj;
+  
+  // Normalize realUrl to omit trailing slash for clean matching
+  const normalizedReal = realUrl.replace(/\/$/, "");
+
+  const traverseAndReplace = (value: any): any => {
+    if (typeof value === 'string') {
+      return value.replace(/https?:\/\/your-r2-bucket\.com/g, normalizedReal);
+    } else if (Array.isArray(value)) {
+      return value.map(traverseAndReplace);
+    } else if (value !== null && typeof value === 'object') {
+      const copy: any = {};
+      for (const key of Object.keys(value)) {
+        copy[key] = traverseAndReplace(value[key]);
+      }
+      return copy;
+    }
+    return value;
+  };
+
+  return traverseAndReplace(obj);
+}
+
+/**
  * Reads full database state, with zero-downtime Firestore read and automatic seeding
  */
 export async function getDbData(): Promise<any> {
@@ -218,7 +246,7 @@ export async function getDbData(): Promise<any> {
 
   if (!firestore) {
     console.log('Using local JSON database (Firebase Admin not connected).');
-    return localData;
+    return replaceR2Placeholders(localData, process.env.R2_PUBLIC_URL);
   }
 
   try {
@@ -227,7 +255,7 @@ export async function getDbData(): Promise<any> {
     // First, verify and perform migration if Firestore is newly provisioned
     await autoMigrateIfEmpty(firestore, localData);
 
-    // Fetch all 8 documents in parallel
+    // Fetch all 9 documents in parallel
     const docPromises = DB_KEYS.map((key) => collRef.doc(key).get());
     const snapshots = await Promise.all(docPromises);
 
@@ -253,7 +281,7 @@ export async function getDbData(): Promise<any> {
       }
     }
 
-    return result;
+    return replaceR2Placeholders(result, process.env.R2_PUBLIC_URL);
   } catch (err: any) {
     const isSetupError = err.message && (
       err.message.includes('NOT_FOUND') || 
@@ -266,7 +294,7 @@ export async function getDbData(): Promise<any> {
     } else {
       console.warn('Failed to retrieve data from Firestore. Falling back to local database. Error:', err.message);
     }
-    return localData;
+    return replaceR2Placeholders(localData, process.env.R2_PUBLIC_URL);
   }
 }
 
