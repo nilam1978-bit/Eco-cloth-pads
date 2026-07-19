@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Wonderpads Reusable",
+  "description": "An interactive, high-fidelity customizer for bespoke reusable cotton \u0026 bamboo menstrual cloth pads. Features live 3D-like double-sided visualizers, a period ecolocial savings calculator, and an custom AI hygiene care advisor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
