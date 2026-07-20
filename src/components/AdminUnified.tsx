@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { 
+  Edit, Trash2, Plus, Search, Settings, ShoppingBag, X, ChevronDown, ChevronUp, 
+  Folder, FileText, Database, Github, Lock, Upload, Check, Eye, EyeOff, 
+  RefreshCw, HelpCircle, BookOpen, AlertTriangle 
+} from 'lucide-react';
 
-// Product type to display name map
 const RTS_NAME_MAP: Record<string, string> = {
   'Liner': 'Mini Pantyliner',
   'Light': 'Light Day Pad',
@@ -9,6 +13,13 @@ const RTS_NAME_MAP: Record<string, string> = {
   'Heavy': 'Heavy Night Pad',
   'Heavy dry': 'Heavy Night Pad',
   'Extra Long': 'Overnight Safety Pad'
+};
+
+const SHAPE_LABELS: Record<string, string> = {
+  'moon_rise': '🌙 MoonRise',
+  'sunglow': '☀️ SunGlow',
+  'staple': '📎 Staple',
+  'mega_pad': '👑 MegaPad'
 };
 
 interface AdminUnifiedProps {
@@ -72,1056 +83,1020 @@ interface AdminUnifiedProps {
   setFirebaseStatus: (val: any) => void;
   isR2Mock: boolean;
   onClose?: () => void;
+  hideLookbookInBackOffice: boolean;
+  toggleHideLookbookInBackOffice: (val: boolean) => Promise<boolean>;
 }
 
 export const AdminUnified: React.FC<AdminUnifiedProps> = ({
-  fabricsTop,
-  setFabricsTop,
-  fabricsBacking,
-  setFabricsBacking,
-  sizeOptions,
-  setSizeOptions,
-  absorbencyOptions,
-  setAbsorbencyOptions,
-  readyMadeStocks,
-  setReadyMadeStocks,
-  shapeOptions,
-  setShapeOptions,
-  washingFaq,
-  setWashingFaq,
-  blogPosts,
-  setBlogPosts,
-
-  categories,
-  setCategories,
-  editingCategoriesText,
-  setEditingCategoriesText,
-  shopLogoUrl,
-  setShopLogoUrl,
-  merchantEmail,
-  setMerchantEmail,
-  merchantPhone,
-  setMerchantPhone,
-
-  saveDatabase,
-  handleUploadToR2,
-  activePassword,
-  setActivePassword,
-  setIsAdminAuthenticated,
-  setAdminPasswordInput,
-
-  adminSuccess,
-  setAdminSuccess,
-  adminError,
-  setAdminError,
-
-  lookbookPhotos,
-  setLookbookPhotos,
-  isLoadingPhotos,
-  setIsLoadingPhotos,
-
-  publishToGithub,
-  isPublishingToGithub,
-  ghOwner,
-  setGhOwner,
-  ghRepo,
-  setGhRepo,
-  ghBranch,
-  setGhBranch,
-  ghCommitMsg,
-  setGhCommitMsg,
-
-  firebaseStatus,
-  setFirebaseStatus,
-  isR2Mock,
-  onClose
+  fabricsTop, setFabricsTop, fabricsBacking, setFabricsBacking,
+  sizeOptions, setSizeOptions, absorbencyOptions, setAbsorbencyOptions,
+  readyMadeStocks, setReadyMadeStocks, shapeOptions, setShapeOptions,
+  washingFaq, setWashingFaq, blogPosts, setBlogPosts,
+  categories, setCategories, editingCategoriesText, setEditingCategoriesText,
+  shopLogoUrl, setShopLogoUrl, merchantEmail, setMerchantEmail, merchantPhone, setMerchantPhone,
+  saveDatabase, handleUploadToR2, activePassword, setActivePassword,
+  setIsAdminAuthenticated, setAdminPasswordInput,
+  adminSuccess, setAdminSuccess, adminError, setAdminError,
+  lookbookPhotos, setLookbookPhotos, isLoadingPhotos, setIsLoadingPhotos,
+  publishToGithub, isPublishingToGithub, ghOwner, setGhOwner, ghRepo, setGhRepo,
+  ghBranch, setGhBranch, ghCommitMsg, setGhCommitMsg,
+  firebaseStatus, isR2Mock, onClose, hideLookbookInBackOffice, toggleHideLookbookInBackOffice
 }) => {
-  // Views
-  const [adminView, setAdminView] = useState<'add' | 'edit' | 'settings'>('add');
-  const [activeAddType, setActiveAddType] = useState<'fabric' | 'pad' | 'size' | 'faq' | 'blog'>('fabric');
-  const [adminEditSearch, setAdminEditSearch] = useState('');
-  const [adminEditingItem, setAdminEditingItem] = useState<{ type: 'fabric' | 'pad' | 'size' | 'faq' | 'blog', data: any } | null>(null);
+  // Navigation State
+  const [activeSidebar, setActiveSidebar] = useState<'shop' | 'settings'>('shop');
+  const [activeShopTab, setActiveShopTab] = useState<'fabrics' | 'pads' | 'pricing' | 'faq' | 'blog' | 'categories'>('fabrics');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'routing' | 'publishing' | 'database' | 'danger'>('routing');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Simple Form States
-  const [newFabName, setNewFabName] = useState('');
-  const [newFabCategory, setNewFabCategory] = useState(categories[0] || 'Flowers');
-  const [newFabMaterial, setNewFabMaterial] = useState('');
-  const [newFabPremium, setNewFabPremium] = useState('0.00');
-  const [newFabProperties, setNewFabProperties] = useState('');
-  const [newFabStock, setNewFabStock] = useState<'in_stock' | 'low_stock' | 'out_of_stock'>('in_stock');
-  const [newFabImageUrl, setNewFabImageUrl] = useState('');
+  // Collapsible Categories
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  // Modal control states
+  const [fabricModalOpen, setFabricModalOpen] = useState(false);
+  const [editingFabric, setEditingFabric] = useState<any | null>(null);
+
+  const [rtsModalOpen, setRtsModalOpen] = useState(false);
+  const [editingRts, setEditingRts] = useState<any | null>(null);
+
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
+  const [editingFaq, setEditingFaq] = useState<any | null>(null);
+
+  const [blogModalOpen, setBlogModalOpen] = useState(false);
+  const [editingBlog, setEditingBlog] = useState<any | null>(null);
+
+  // Form Field States
+  // Fabrics
+  const [fabName, setFabName] = useState('');
+  const [fabCategory, setFabCategory] = useState('');
+  const [fabMaterial, setFabMaterial] = useState('');
+  const [fabPremium, setFabPremium] = useState('0.00');
+  const [fabProperties, setFabProperties] = useState('');
+  const [fabStock, setFabStock] = useState<'in_stock' | 'low_stock' | 'out_of_stock'>('in_stock');
+  const [fabImageUrl, setFabImageUrl] = useState('');
   const [isUploadingFab, setIsUploadingFab] = useState(false);
 
-  const [newRtsName, setNewRtsName] = useState('');
-  const [newRtsDescription, setNewRtsDescription] = useState('');
-  const [newRtsPrice, setNewRtsPrice] = useState('15.00');
-  const [newRtsSize, setNewRtsSize] = useState('Regular Day (8")');
-  const [newRtsPrint, setNewRtsPrint] = useState('');
-  const [newRtsAbsorbency, setNewRtsAbsorbency] = useState('Moderate dry');
-  const [newRtsQuantity, setNewRtsQuantity] = useState('1');
-  const [newRtsImageUrl, setNewRtsImageUrl] = useState('');
-  const [newRtsNotes, setNewRtsNotes] = useState('');
+  // Ready Made Stocks
+  const [rtsName, setRtsName] = useState('');
+  const [rtsDescription, setRtsDescription] = useState('');
+  const [rtsPrice, setRtsPrice] = useState('15.00');
+  const [rtsSize, setRtsSize] = useState('Regular Day (8")');
+  const [rtsPrint, setRtsPrint] = useState('');
+  const [rtsAbsorbency, setRtsAbsorbency] = useState('Moderate dry');
+  const [rtsQuantity, setRtsQuantity] = useState('1');
+  const [rtsImageUrl, setRtsImageUrl] = useState('');
+  const [rtsNotes, setRtsNotes] = useState('');
+  const [rtsShape, setRtsShape] = useState('');
   const [isUploadingRts, setIsUploadingRts] = useState(false);
 
-  const [newSizeId, setNewSizeId] = useState('');
-  const [newSizeName, setNewSizeName] = useState('');
-  const [newSizeLabel, setNewSizeLabel] = useState('');
-  const [newSizeLength, setNewSizeLength] = useState('8');
-  const [newSizePrice, setNewSizePrice] = useState('11.00');
-  const [newSizeDescription, setNewSizeDescription] = useState('');
+  // FAQ Fields
+  const [faqQuestion, setFaqQuestion] = useState('');
+  const [faqAnswer, setFaqAnswer] = useState('');
 
-  const [newFaqQuestion, setNewFaqQuestion] = useState('');
-  const [newFaqAnswer, setNewFaqAnswer] = useState('');
-
-  const [newBlogTitle, setNewBlogTitle] = useState('');
-  const [newBlogContent, setNewBlogContent] = useState('');
-  const [newBlogImageUrl, setNewBlogImageUrl] = useState('');
-  const [newBlogAuthor, setNewBlogAuthor] = useState('WonderPads');
+  // Blog Fields
+  const [blogTitle, setBlogTitle] = useState('');
+  const [blogContent, setBlogContent] = useState('');
+  const [blogImageUrl, setBlogImageUrl] = useState('');
+  const [blogAuthor, setBlogAuthor] = useState('WonderPads');
   const [isUploadingBlog, setIsUploadingBlog] = useState(false);
 
-  // Settings states
+  // Pricing Table Inline Edit State
+  const [editingSizeId, setEditingSizeId] = useState<string | null>(null);
+  const [inlineLabel, setInlineLabel] = useState('');
+  const [inlineLength, setInlineLength] = useState('8');
+  const [inlinePrice, setInlinePrice] = useState('11.00');
+  const [inlineBackingUpgrade, setInlineBackingUpgrade] = useState('0.00');
+  const [inlineLayerUpgrade, setInlineLayerUpgrade] = useState('0.00');
+
+  // Inline Add Size State
+  const [isAddingSize, setIsAddingSize] = useState(false);
+  const [addSizeId, setAddSizeId] = useState('');
+  const [addSizeLabel, setAddSizeLabel] = useState('');
+  const [addSizeLength, setAddSizeLength] = useState('8');
+  const [addSizePrice, setAddSizePrice] = useState('11.00');
+  const [addSizeBackingUpgrade, setAddSizeBackingUpgrade] = useState('0.00');
+  const [addSizeLayerUpgrade, setAddSizeLayerUpgrade] = useState('0.00');
+
+  // Settings Field States
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [showAdvancedImport, setShowAdvancedImport] = useState(false);
+  const [isAutoMatching, setIsAutoMatching] = useState(false);
+  const [showEraseConfirm, setShowEraseConfirm] = useState(false);
+  const [eraseConfirmText, setEraseConfirmText] = useState('');
 
-  // RTS batch import state
+  // Bulk import
   const [rtsBulkImportTag, setRtsBulkImportTag] = useState('pads');
   const [isRtsBulkImporting, setIsRtsBulkImporting] = useState(false);
+  const [showAdvancedImport, setShowAdvancedImport] = useState(false);
 
-  // Erase States
-  const [showEraseConfirmationModal, setShowEraseConfirmationModal] = useState(false);
-  const [eraseConfirmationInput, setEraseConfirmationInput] = useState('');
-
-  const resetAddFormStates = () => {
-    setNewFabName('');
-    setNewFabCategory(categories[0] || 'Flowers');
-    setNewFabMaterial('');
-    setNewFabPremium('0.00');
-    setNewFabProperties('');
-    setNewFabStock('in_stock');
-    setNewFabImageUrl('');
-
-    setNewRtsName('');
-    setNewRtsDescription('');
-    setNewRtsPrice('15.00');
-    setNewRtsSize('Regular Day (8")');
-    setNewRtsPrint('');
-    setNewRtsAbsorbency('Moderate dry');
-    setNewRtsQuantity('1');
-    setNewRtsImageUrl('');
-    setNewRtsNotes('');
-
-    setNewSizeId('');
-    setNewSizeName('');
-    setNewSizeLabel('');
-    setNewSizeLength('8');
-    setNewSizePrice('11.00');
-    setNewSizeDescription('');
-
-    setNewFaqQuestion('');
-    setNewFaqAnswer('');
-
-    setNewBlogTitle('');
-    setNewBlogContent('');
-    setNewBlogImageUrl('');
-    setNewBlogAuthor('WonderPads');
-
-    setShowAdvancedImport(false);
+  // Toggle collapses
+  const toggleCategory = (catName: string) => {
+    setCollapsedCategories(prev => ({ ...prev, [catName]: !prev[catName] }));
   };
 
-  const handleAddNewItem = async () => {
-    setAdminError('');
-    setAdminSuccess('');
+  // Trigger Fabric Modal
+  const openFabricModal = (item: any | null = null) => {
+    setEditingFabric(item);
+    if (item) {
+      setFabName(item.name || '');
+      setFabCategory(item.type === 'backing' ? 'Backing Fabric' : (item.category || categories[0] || 'Flowers'));
+      setFabMaterial(item.material || '');
+      setFabPremium((item.premium || 0).toString());
+      setFabProperties((item.properties || []).join(', '));
+      setFabStock(item.stockStatus || 'in_stock');
+      setFabImageUrl(item.imageUrl || '');
+    } else {
+      setFabName('');
+      setFabCategory(categories[0] || 'Flowers');
+      setFabMaterial('Cotton Woven');
+      setFabPremium('0.00');
+      setFabProperties('');
+      setFabStock('in_stock');
+      setFabImageUrl('');
+    }
+    setFabricModalOpen(true);
+  };
 
-    if (activeAddType === 'fabric') {
-      if (!newFabName.trim()) {
-        setAdminError('Fabric print name is required.');
-        return;
-      }
-      const isBacking = newFabCategory === 'Backing Fabric';
-      const computedId = 'fab-' + Date.now();
-      const newFab = {
-        id: computedId,
-        name: newFabName.trim(),
+  // Save Fabric Print
+  const handleSaveFabric = async () => {
+    if (!fabName.trim()) {
+      setAdminError('Fabric print name is required.');
+      return;
+    }
+    const isBacking = fabCategory === 'Backing Fabric';
+    const parsedPremium = parseFloat(fabPremium) || 0;
+    const parsedProps = fabProperties.split(',').map(s => s.trim()).filter(Boolean);
+
+    let updatedTops = [...fabricsTop];
+    let updatedBackings = [...fabricsBacking];
+
+    if (editingFabric) {
+      // Remove from both first
+      updatedTops = updatedTops.filter(x => x.id !== editingFabric.id);
+      updatedBackings = updatedBackings.filter(x => x.id !== editingFabric.id);
+
+      const updatedObj = {
+        ...editingFabric,
+        name: fabName.trim(),
         type: isBacking ? 'backing' : 'top',
-        material: newFabMaterial.trim() || 'Cotton Woven',
+        material: fabMaterial.trim(),
+        premium: parsedPremium,
+        properties: parsedProps,
+        stockStatus: fabStock,
+        category: isBacking ? 'Backing Fabric' : fabCategory,
+        imageUrl: fabImageUrl.trim() || editingFabric.imageUrl
+      };
+
+      if (isBacking) updatedBackings.push(updatedObj);
+      else updatedTops.push(updatedObj);
+    } else {
+      const newObj = {
+        id: 'fab-' + Date.now(),
+        name: fabName.trim(),
+        type: isBacking ? 'backing' : 'top',
+        material: fabMaterial.trim(),
         description: 'Wonder Premium Pattern',
         colorHex: '#ffffff',
-        imageUrl: newFabImageUrl.trim() || 'https://images.unsplash.com/photo-1606293926075-69a00dbf9816?auto=format&fit=crop&q=80&w=200',
-        premium: parseFloat(newFabPremium) || 0,
-        properties: newFabProperties.split(',').map((s: string) => s.trim()).filter(Boolean),
-        stockStatus: newFabStock,
-        category: isBacking ? 'Backing Fabric' : newFabCategory,
+        premium: parsedPremium,
+        properties: parsedProps,
+        stockStatus: fabStock,
+        category: isBacking ? 'Backing Fabric' : fabCategory,
+        imageUrl: fabImageUrl.trim() || 'https://images.unsplash.com/photo-1606293926075-69a00dbf9816?auto=format&fit=crop&q=80&w=200',
         hidden: false
       };
 
-      const updatedTops = isBacking ? fabricsTop : [...fabricsTop, newFab];
-      const updatedBackings = isBacking ? [...fabricsBacking, newFab] : fabricsBacking;
+      if (isBacking) updatedBackings.push(newObj);
+      else updatedTops.push(newObj);
+    }
 
-      if (!isBacking) setFabricsTop(updatedTops);
-      else setFabricsBacking(updatedBackings);
+    setFabricsTop(updatedTops);
+    setFabricsBacking(updatedBackings);
+    const success = await saveDatabase({ fabricsTop: updatedTops, fabricsBacking: updatedBackings });
+    if (success) {
+      setAdminSuccess(editingFabric ? 'Fabric print updated successfully!' : 'Fabric print added successfully!');
+      setFabricModalOpen(false);
+    }
+  };
 
-      const success = await saveDatabase({ fabricsTop: updatedTops, fabricsBacking: updatedBackings });
-      if (success) {
-        setAdminSuccess('Fabric print added successfully!');
-        resetAddFormStates();
-      }
-    } 
-    else if (activeAddType === 'pad') {
-      if (!newRtsAbsorbency) {
-        setAdminError('Product Type / absorbency is required.');
-        return;
-      }
-      const computedId = 'rts-' + Date.now();
-      const defaultRtsImage = 'https://images.unsplash.com/photo-1606293926075-69a00dbf9816?auto=format&fit=crop&q=80&w=200';
-      const calculatedName = RTS_NAME_MAP[newRtsAbsorbency] || newRtsAbsorbency;
-      const freshRts = {
-        id: computedId,
+  // Delete Fabric
+  const handleDeleteFabric = async (item: any) => {
+    if (!window.confirm(`Are you sure you want to delete fabric "${item.name}"?`)) return;
+    const updatedTops = fabricsTop.filter(x => x.id !== item.id);
+    const updatedBackings = fabricsBacking.filter(x => x.id !== item.id);
+    setFabricsTop(updatedTops);
+    setFabricsBacking(updatedBackings);
+    await saveDatabase({ fabricsTop: updatedTops, fabricsBacking: updatedBackings });
+    setAdminSuccess('Fabric print deleted successfully.');
+  };
+
+  // Trigger RTS Modal
+  const openRtsModal = (item: any | null = null) => {
+    setEditingRts(item);
+    if (item) {
+      setRtsName(item.name || '');
+      setRtsDescription(item.description || '');
+      setRtsPrice((item.price || 15.00).toString());
+      setRtsSize(item.size || '8 inch');
+      setRtsPrint(item.print || '');
+      setRtsAbsorbency(item.absorbency || 'Moderate dry');
+      setRtsQuantity((item.quantityLeft || 1).toString());
+      setRtsImageUrl(item.imageUrl || '');
+      setRtsNotes(item.adminNotes || '');
+      setRtsShape(item.shape || '');
+    } else {
+      setRtsName('');
+      setRtsDescription('');
+      setRtsPrice('15.00');
+      setRtsSize('Regular Day (8")');
+      setRtsPrint('');
+      setRtsAbsorbency('Moderate dry');
+      setRtsQuantity('1');
+      setRtsImageUrl('');
+      setRtsNotes('');
+      setRtsShape('');
+    }
+    setRtsModalOpen(true);
+  };
+
+  // Save Ready-Made Stock Item
+  const handleSaveRts = async () => {
+    if (!rtsAbsorbency) {
+      setAdminError('Product type is required.');
+      return;
+    }
+    const calculatedName = rtsName.trim() || RTS_NAME_MAP[rtsAbsorbency] || rtsAbsorbency;
+    const parsedPrice = parseFloat(rtsPrice) || 15.00;
+    const parsedQty = parseInt(rtsQuantity) || 1;
+
+    let updatedList = [...readyMadeStocks];
+
+    if (editingRts) {
+      const updatedObj = {
+        ...editingRts,
         name: calculatedName,
-        description: newRtsDescription.trim() || 'Pre-crafted limited release pack ready for immediate dispatch',
-        price: parseFloat(newRtsPrice) || 15.00,
-        quantityLeft: parseInt(newRtsQuantity) || 1,
-        size: newRtsSize || '8 inch',
-        sizeLabel: newRtsSize || '8 inch',
-        print: newRtsPrint.trim() || '',
-        printLabel: newRtsPrint.trim() || '',
-        absorbency: newRtsAbsorbency,
-        absorbencyLabel: newRtsAbsorbency,
-        imageUrl: newRtsImageUrl.trim() || defaultRtsImage,
-        adminNotes: newRtsNotes.trim(),
+        description: rtsDescription.trim(),
+        price: parsedPrice,
+        quantityLeft: parsedQty,
+        size: rtsSize,
+        sizeLabel: rtsSize,
+        print: rtsPrint.trim(),
+        printLabel: rtsPrint.trim(),
+        absorbency: rtsAbsorbency,
+        absorbencyLabel: rtsAbsorbency,
+        imageUrl: rtsImageUrl.trim() || editingRts.imageUrl,
+        adminNotes: rtsNotes.trim(),
+        shape: rtsShape
+      };
+      updatedList = updatedList.map(x => x.id === editingRts.id ? updatedObj : x);
+    } else {
+      const newObj = {
+        id: 'rts-' + Date.now(),
+        name: calculatedName,
+        description: rtsDescription.trim() || 'Pre-crafted limited release pack ready for immediate dispatch',
+        price: parsedPrice,
+        quantityLeft: parsedQty,
+        size: rtsSize,
+        sizeLabel: rtsSize,
+        print: rtsPrint.trim(),
+        printLabel: rtsPrint.trim(),
+        absorbency: rtsAbsorbency,
+        absorbencyLabel: rtsAbsorbency,
+        imageUrl: rtsImageUrl.trim() || 'https://images.unsplash.com/photo-1606293926075-69a00dbf9816?auto=format&fit=crop&q=80&w=200',
+        adminNotes: rtsNotes.trim(),
+        shape: rtsShape,
         hidden: false
       };
-      const updatedRts = [...readyMadeStocks, freshRts];
-      setReadyMadeStocks(updatedRts);
-      const success = await saveDatabase({ readyMadeStocks: updatedRts });
-      if (success) {
-        setAdminSuccess('Ready-Made Pad added successfully!');
-        resetAddFormStates();
-      }
+      updatedList.push(newObj);
     }
-    else if (activeAddType === 'size') {
-      if (!newSizeId.trim() || !newSizeName.trim()) {
-        setAdminError('Size ID and Name are required.');
-        return;
-      }
-      const cleanId = newSizeId.trim().toLowerCase().replace(/\s+/g, '_');
-      if (sizeOptions.some((s: any) => s.id === cleanId)) {
-        setAdminError(`Size ID "${cleanId}" already exists.`);
-        return;
-      }
-      const newSz = {
-        id: cleanId,
-        name: newSizeName.trim(),
-        lengthInches: parseFloat(newSizeLength) || 8,
-        basePrice: parseFloat(newSizePrice) || 11.00,
-        description: newSizeDescription.trim(),
-        displayLabel: newSizeLabel.trim() || `${newSizeName.trim()} (${newSizeLength} inch)`
+
+    setReadyMadeStocks(updatedList);
+    const success = await saveDatabase({ readyMadeStocks: updatedList });
+    if (success) {
+      setAdminSuccess(editingRts ? 'Ready-Made Pad updated successfully!' : 'Ready-Made Pad added successfully!');
+      setRtsModalOpen(false);
+    }
+  };
+
+  // Delete RTS Pad
+  const handleDeleteRts = async (item: any) => {
+    if (!window.confirm(`Are you sure you want to delete ready-made pad "${item.print || item.name}"?`)) return;
+    const updated = readyMadeStocks.filter(x => x.id !== item.id);
+    setReadyMadeStocks(updated);
+    await saveDatabase({ readyMadeStocks: updated });
+    setAdminSuccess('Ready-Made Pad deleted successfully.');
+  };
+
+  // Trigger FAQ Modal
+  const openFaqModal = (item: any | null = null) => {
+    setEditingFaq(item);
+    if (item) {
+      setFaqQuestion(item.question || '');
+      setFaqAnswer(item.answer || '');
+    } else {
+      setFaqQuestion('');
+      setFaqAnswer('');
+    }
+    setFaqModalOpen(true);
+  };
+
+  // Save FAQ Question
+  const handleSaveFaq = async () => {
+    if (!faqQuestion.trim() || !faqAnswer.trim()) {
+      setAdminError('Question and Answer are required.');
+      return;
+    }
+    let updatedList = [...washingFaq];
+    const newFaq = { question: faqQuestion.trim(), answer: faqAnswer.trim() };
+
+    if (editingFaq) {
+      updatedList = updatedList.map(x => x.question === editingFaq.question ? newFaq : x);
+    } else {
+      updatedList.push(newFaq);
+    }
+
+    setWashingFaq(updatedList);
+    const success = await saveDatabase({ washingFaq: updatedList });
+    if (success) {
+      setAdminSuccess('FAQ saved successfully!');
+      setFaqModalOpen(false);
+    }
+  };
+
+  // Delete FAQ
+  const handleDeleteFaq = async (item: any) => {
+    if (!window.confirm(`Delete this FAQ question?`)) return;
+    const updated = washingFaq.filter(x => x.question !== item.question);
+    setWashingFaq(updated);
+    await saveDatabase({ washingFaq: updated });
+    setAdminSuccess('FAQ question deleted.');
+  };
+
+  // Trigger Blog Modal
+  const openBlogModal = (item: any | null = null) => {
+    setEditingBlog(item);
+    if (item) {
+      setBlogTitle(item.title || '');
+      setBlogContent(item.content || '');
+      setBlogImageUrl(item.imageUrl || '');
+      setBlogAuthor(item.author || 'WonderPads');
+    } else {
+      setBlogTitle('');
+      setBlogContent('');
+      setBlogImageUrl('');
+      setBlogAuthor('WonderPads');
+    }
+    setBlogModalOpen(true);
+  };
+
+  // Save Blog Post
+  const handleSaveBlog = async () => {
+    if (!blogTitle.trim() || !blogContent.trim()) {
+      setAdminError('Title and Content are required.');
+      return;
+    }
+    let updatedList = [...blogPosts];
+
+    if (editingBlog) {
+      const updatedObj = {
+        ...editingBlog,
+        title: blogTitle.trim(),
+        content: blogContent.trim(),
+        imageUrl: blogImageUrl.trim() || editingBlog.imageUrl,
+        author: blogAuthor.trim() || 'WonderPads'
       };
-      const updatedSizes = [...sizeOptions, newSz];
-      setSizeOptions(updatedSizes);
-      const success = await saveDatabase({ sizeOptions: updatedSizes });
-      if (success) {
-        setAdminSuccess('Pad Size added successfully!');
-        resetAddFormStates();
-      }
-    }
-    else if (activeAddType === 'faq') {
-      if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) {
-        setAdminError('Question and Answer are required.');
-        return;
-      }
-      const newF = {
-        question: newFaqQuestion.trim(),
-        answer: newFaqAnswer.trim()
-      };
-      const updatedFaqs = [...washingFaq, newF];
-      setWashingFaq(updatedFaqs);
-      const success = await saveDatabase({ washingFaq: updatedFaqs });
-      if (success) {
-        setAdminSuccess('FAQ Question added successfully!');
-        resetAddFormStates();
-      }
-    }
-    else if (activeAddType === 'blog') {
-      if (!newBlogTitle.trim() || !newBlogContent.trim()) {
-        setAdminError('Blog Title and Content are required.');
-        return;
-      }
-      const computedId = 'blog-' + Date.now();
-      const newB = {
-        id: computedId,
-        title: newBlogTitle.trim(),
-        content: newBlogContent.trim(),
-        imageUrl: newBlogImageUrl.trim() || 'https://images.unsplash.com/photo-1516259762381-22954d7d3ad2?auto=format&fit=crop&q=80&w=400',
+      updatedList = updatedList.map(x => x.id === editingBlog.id ? updatedObj : x);
+    } else {
+      const newObj = {
+        id: 'blog-' + Date.now(),
+        title: blogTitle.trim(),
+        content: blogContent.trim(),
+        imageUrl: blogImageUrl.trim() || 'https://images.unsplash.com/photo-1516259762381-22954d7d3ad2?auto=format&fit=crop&q=80&w=400',
         date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        author: newBlogAuthor.trim() || 'WonderPads'
+        author: blogAuthor.trim() || 'WonderPads'
       };
-      const updatedBlogs = [...blogPosts, newB];
-      setBlogPosts(updatedBlogs);
-      const success = await saveDatabase({ blogPosts: updatedBlogs });
-      if (success) {
-        setAdminSuccess('Blog Post added successfully!');
-        resetAddFormStates();
-      }
+      updatedList.push(newObj);
+    }
+
+    setBlogPosts(updatedList);
+    const success = await saveDatabase({ blogPosts: updatedList });
+    if (success) {
+      setAdminSuccess('Blog post saved successfully!');
+      setBlogModalOpen(false);
     }
   };
 
-  const startEditingUnifiedItem = (type: 'fabric' | 'pad' | 'size' | 'faq' | 'blog', item: any) => {
-    setAdminError('');
-    setAdminSuccess('');
-    setAdminEditingItem({ type, data: item });
+  // Delete Blog Post
+  const handleDeleteBlog = async (item: any) => {
+    if (!window.confirm(`Delete blog post "${item.title}"?`)) return;
+    const updated = blogPosts.filter(x => x.id !== item.id);
+    setBlogPosts(updated);
+    await saveDatabase({ blogPosts: updated });
+    setAdminSuccess('Blog post deleted.');
+  };
 
-    if (type === 'fabric') {
-      setNewFabName(item.name || '');
-      setNewFabCategory(item.type === 'backing' ? 'Backing Fabric' : (item.category || 'Flowers'));
-      setNewFabMaterial(item.material || '');
-      setNewFabPremium((item.premium || 0).toString());
-      setNewFabProperties((item.properties || []).join(', '));
-      setNewFabStock(item.stockStatus || 'in_stock');
-      setNewFabImageUrl(item.imageUrl || '');
-    }
-    else if (type === 'pad') {
-      setNewRtsName(item.name || '');
-      setNewRtsDescription(item.description || '');
-      setNewRtsPrice((item.price || 15.00).toString());
-      setNewRtsSize(item.size || '8 inch');
-      setNewRtsPrint(item.print || '');
-      setNewRtsAbsorbency(item.absorbency || 'Moderate dry');
-      setNewRtsQuantity((item.quantityLeft || 1).toString());
-      setNewRtsImageUrl(item.imageUrl || '');
-      setNewRtsNotes(item.adminNotes || '');
-    }
-    else if (type === 'size') {
-      setNewSizeId(item.id || '');
-      setNewSizeName(item.name || '');
-      setNewSizeLabel(item.displayLabel || '');
-      setNewSizeLength((item.lengthInches || 8).toString());
-      setNewSizePrice((item.basePrice || 11.00).toString());
-      setNewSizeDescription(item.description || '');
-    }
-    else if (type === 'faq') {
-      setNewFaqQuestion(item.question || '');
-      setNewFaqAnswer(item.answer || '');
-    }
-    else if (type === 'blog') {
-      setNewBlogTitle(item.title || '');
-      setNewBlogContent(item.content || '');
-      setNewBlogImageUrl(item.imageUrl || '');
-      setNewBlogAuthor(item.author || 'WonderPads');
+  // Start Inline Sizing Edit
+  const startInlineEdit = (size: any) => {
+    setEditingSizeId(size.id);
+    setInlineLabel(size.displayLabel || size.name || '');
+    setInlineLength((size.lengthInches || 8).toString());
+    setInlinePrice((size.basePrice || size.priceBase || 11.00).toString());
+    setInlineBackingUpgrade((size.backingUpgrade || 0).toString());
+    setInlineLayerUpgrade((size.layerUpgrade || size.additionalLayerUpgrade || 0).toString());
+  };
+
+  // Save Inline Sizing row
+  const saveInlineEdit = async (sizeId: string) => {
+    const updatedList = sizeOptions.map(s => {
+      if (s.id === sizeId) {
+        return {
+          ...s,
+          displayLabel: inlineLabel,
+          lengthInches: parseFloat(inlineLength) || s.lengthInches || 8,
+          basePrice: parseFloat(inlinePrice) || 11.00,
+          priceBase: parseFloat(inlinePrice) || 11.00,
+          backingUpgrade: parseFloat(inlineBackingUpgrade) || 0,
+          layerUpgrade: parseFloat(inlineLayerUpgrade) || 0,
+          additionalLayerUpgrade: parseFloat(inlineLayerUpgrade) || 0
+        };
+      }
+      return s;
+    });
+
+    setSizeOptions(updatedList);
+    const success = await saveDatabase({ sizeOptions: updatedList });
+    if (success) {
+      setAdminSuccess('Pricing configuration updated!');
+      setEditingSizeId(null);
     }
   };
 
-  const handleSaveUnifiedEdit = async () => {
-    if (!adminEditingItem) return;
-    setAdminError('');
-    setAdminSuccess('');
-    const { type, data } = adminEditingItem;
-
-    if (type === 'fabric') {
-      if (!newFabName.trim()) {
-        setAdminError('Fabric print name is required.');
-        return;
-      }
-      const isBacking = newFabCategory === 'Backing Fabric';
-      const updatedFab = {
-        ...data,
-        name: newFabName.trim(),
-        type: isBacking ? 'backing' : 'top',
-        material: newFabMaterial.trim() || 'Cotton Woven',
-        imageUrl: newFabImageUrl.trim() || data.imageUrl,
-        premium: parseFloat(newFabPremium) || 0,
-        properties: newFabProperties.split(',').map((s: string) => s.trim()).filter(Boolean),
-        stockStatus: newFabStock,
-        category: isBacking ? 'Backing Fabric' : newFabCategory
-      };
-
-      let updatedTop = fabricsTop.filter(x => x.id !== data.id);
-      let updatedBacking = fabricsBacking.filter(x => x.id !== data.id);
-
-      if (updatedFab.type === 'top') {
-        updatedTop.push(updatedFab);
-      } else {
-        updatedBacking.push(updatedFab);
-      }
-
-      setFabricsTop(updatedTop);
-      setFabricsBacking(updatedBacking);
-
-      const success = await saveDatabase({ fabricsTop: updatedTop, fabricsBacking: updatedBacking });
-      if (success) {
-        setAdminSuccess('Fabric print updated successfully!');
-        setAdminEditingItem(null);
-        resetAddFormStates();
-      }
+  // Add Size Inline Save
+  const handleAddSizeInline = async () => {
+    const cleanId = addSizeId.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!cleanId || !addSizeLabel.trim()) {
+      setAdminError('Size ID and Display Label are required.');
+      return;
     }
-    else if (type === 'pad') {
-      if (!newRtsAbsorbency) {
-        setAdminError('Product Type is required.');
-        return;
-      }
-      const calculatedName = RTS_NAME_MAP[newRtsAbsorbency] || newRtsAbsorbency;
-      const updatedRtsItem = {
-        ...data,
-        name: calculatedName,
-        description: newRtsDescription.trim(),
-        price: parseFloat(newRtsPrice) || 15.00,
-        quantityLeft: parseInt(newRtsQuantity) || 1,
-        size: newRtsSize || '8 inch',
-        sizeLabel: newRtsSize || '8 inch',
-        print: newRtsPrint.trim(),
-        printLabel: newRtsPrint.trim(),
-        absorbency: newRtsAbsorbency,
-        absorbencyLabel: newRtsAbsorbency,
-        imageUrl: newRtsImageUrl.trim() || data.imageUrl,
-        adminNotes: newRtsNotes.trim()
-      };
-
-      const updatedList = readyMadeStocks.map(x => x.id === data.id ? updatedRtsItem : x);
-      setReadyMadeStocks(updatedList);
-
-      const success = await saveDatabase({ readyMadeStocks: updatedList });
-      if (success) {
-        setAdminSuccess('Ready-Made Pad updated successfully!');
-        setAdminEditingItem(null);
-        resetAddFormStates();
-      }
+    if (sizeOptions.some(s => s.id === cleanId)) {
+      setAdminError(`Size ID "${cleanId}" already exists.`);
+      return;
     }
-    else if (type === 'size') {
-      if (!newSizeName.trim()) {
-        setAdminError('Size name is required.');
-        return;
-      }
-      const updatedSizeItem = {
-        ...data,
-        name: newSizeName.trim(),
-        lengthInches: parseFloat(newSizeLength) || 8,
-        basePrice: parseFloat(newSizePrice) || 11.00,
-        description: newSizeDescription.trim(),
-        displayLabel: newSizeLabel.trim() || `${newSizeName.trim()} (${newSizeLength} inch)`
-      };
 
-      const updatedList = sizeOptions.map(x => x.id === data.id ? updatedSizeItem : x);
-      setSizeOptions(updatedList);
+    const newSz = {
+      id: cleanId,
+      name: addSizeLabel.trim().split(' ')[0] || 'Custom',
+      displayLabel: addSizeLabel.trim(),
+      lengthInches: parseFloat(addSizeLength) || 8,
+      basePrice: parseFloat(addSizePrice) || 11.00,
+      priceBase: parseFloat(addSizePrice) || 11.00,
+      backingUpgrade: parseFloat(addSizeBackingUpgrade) || 0,
+      layerUpgrade: parseFloat(addSizeLayerUpgrade) || 0,
+      additionalLayerUpgrade: parseFloat(addSizeLayerUpgrade) || 0,
+      description: 'Custom added sizing model',
+      widthCm: 20,
+      minLength: parseFloat(addSizeLength) || 8,
+      maxLength: parseFloat(addSizeLength) || 8
+    };
 
-      const success = await saveDatabase({ sizeOptions: updatedList });
-      if (success) {
-        setAdminSuccess('Pad Size updated successfully!');
-        setAdminEditingItem(null);
-        resetAddFormStates();
-      }
-    }
-    else if (type === 'faq') {
-      if (!newFaqQuestion.trim() || !newFaqAnswer.trim()) {
-        setAdminError('Question and Answer are required.');
-        return;
-      }
-      const updatedFaqItem = {
-        question: newFaqQuestion.trim(),
-        answer: newFaqAnswer.trim()
-      };
-
-      const updatedList = washingFaq.map(x => x.question === data.question ? updatedFaqItem : x);
-      setWashingFaq(updatedList);
-
-      const success = await saveDatabase({ washingFaq: updatedList });
-      if (success) {
-        setAdminSuccess('FAQ updated successfully!');
-        setAdminEditingItem(null);
-        resetAddFormStates();
-      }
-    }
-    else if (type === 'blog') {
-      if (!newBlogTitle.trim() || !newBlogContent.trim()) {
-        setAdminError('Blog Title and Content are required.');
-        return;
-      }
-      const updatedBlogItem = {
-        ...data,
-        title: newBlogTitle.trim(),
-        content: newBlogContent.trim(),
-        imageUrl: newBlogImageUrl.trim() || data.imageUrl,
-        author: newBlogAuthor.trim() || 'WonderPads'
-      };
-
-      const updatedList = blogPosts.map(x => x.id === data.id ? updatedBlogItem : x);
-      setBlogPosts(updatedList);
-
-      const success = await saveDatabase({ blogPosts: updatedList });
-      if (success) {
-        setAdminSuccess('Blog Post updated successfully!');
-        setAdminEditingItem(null);
-        resetAddFormStates();
-      }
+    const updated = [...sizeOptions, newSz];
+    setSizeOptions(updated);
+    const success = await saveDatabase({ sizeOptions: updated });
+    if (success) {
+      setAdminSuccess('Added new pad size successfully!');
+      setIsAddingSize(false);
+      setAddSizeId('');
+      setAddSizeLabel('');
+      setAddSizeLength('8');
+      setAddSizePrice('11.00');
+      setAddSizeBackingUpgrade('0.00');
+      setAddSizeLayerUpgrade('0.00');
     }
   };
 
-  const handleDeleteUnifiedItem = async (type: 'fabric' | 'pad' | 'size' | 'faq' | 'blog', item: any) => {
-    if (!window.confirm(`Are you sure you want to delete this ${type}?`)) return;
+  // Delete Size Option
+  const handleDeleteSizeOption = async (item: any) => {
+    if (!window.confirm(`Delete pad size ${item.displayLabel || item.id}?`)) return;
+    const updated = sizeOptions.filter(x => x.id !== item.id);
+    setSizeOptions(updated);
+    await saveDatabase({ sizeOptions: updated });
+    setAdminSuccess('Pad Size deleted.');
+  };
 
-    setAdminError('');
-    setAdminSuccess('');
+  // Sync / Auto Match filenames with photos in lookbook
+  const runAutoMatch = async () => {
+    try {
+      setIsAutoMatching(true);
+      setAdminSuccess('');
+      setAdminError('');
 
-    if (type === 'fabric') {
-      const updatedTop = fabricsTop.filter(x => x.id !== item.id);
-      const updatedBacking = fabricsBacking.filter(x => x.id !== item.id);
-      setFabricsTop(updatedTop);
-      setFabricsBacking(updatedBacking);
-      await saveDatabase({ fabricsTop: updatedTop, fabricsBacking: updatedBacking });
-      setAdminSuccess('Fabric print deleted successfully.');
-    }
-    else if (type === 'pad') {
-      const updatedList = readyMadeStocks.filter(x => x.id !== item.id);
-      setReadyMadeStocks(updatedList);
-      await saveDatabase({ readyMadeStocks: updatedList });
-      setAdminSuccess('Ready-Made Pad deleted successfully.');
-    }
-    else if (type === 'size') {
-      const updatedList = sizeOptions.filter(x => x.id !== item.id);
-      setSizeOptions(updatedList);
-      await saveDatabase({ sizeOptions: updatedList });
-      setAdminSuccess('Pad Size deleted successfully.');
-    }
-    else if (type === 'faq') {
-      const updatedList = washingFaq.filter(x => x.question !== item.question);
-      setWashingFaq(updatedList);
-      await saveDatabase({ washingFaq: updatedList });
-      setAdminSuccess('FAQ Question deleted successfully.');
-    }
-    else if (type === 'blog') {
-      const updatedList = blogPosts.filter(x => x.id !== item.id);
-      setBlogPosts(updatedList);
-      await saveDatabase({ blogPosts: updatedList });
-      setAdminSuccess('Blog Post deleted successfully.');
+      if (!lookbookPhotos || lookbookPhotos.length === 0) {
+        setAdminError('No lookbook photos uploaded to match.');
+        return;
+      }
+
+      const normalize = (str: string): string => {
+        if (!str) return '';
+        let s = str.substring(0, str.lastIndexOf('.')) || str;
+        s = s.replace(/^(rts-fabric-|wp-fabric-|rts_fabric_|wp_fabric_|lookbook_|rts-|-rts-|fabric-)/gi, '');
+        return s.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().trim();
+      };
+
+      let matchCountFab = 0;
+      let matchCountRts = 0;
+
+      const updatedTops = fabricsTop.map(f => {
+        const normName = normalize(f.name);
+        const match = lookbookPhotos.find(p => normalize(p.filename) === normName);
+        if (match) {
+          matchCountFab++;
+          return { ...f, imageUrl: match.secure_url };
+        }
+        return f;
+      });
+
+      const updatedBackings = fabricsBacking.map(f => {
+        const normName = normalize(f.name);
+        const match = lookbookPhotos.find(p => normalize(p.filename) === normName);
+        if (match) {
+          matchCountFab++;
+          return { ...f, imageUrl: match.secure_url };
+        }
+        return f;
+      });
+
+      const updatedRts = readyMadeStocks.map(r => {
+        const normPrint = normalize(r.print);
+        const normName = normalize(r.name);
+        const match = lookbookPhotos.find(p => {
+          const fn = normalize(p.filename);
+          return fn === normPrint || fn === normName;
+        });
+        if (match) {
+          matchCountRts++;
+          return { ...r, imageUrl: match.secure_url };
+        }
+        return r;
+      });
+
+      if (matchCountFab === 0 && matchCountRts === 0) {
+        setAdminError('No matching filename pairs found. Ensure R2 photos match fabric/RTS print names.');
+        return;
+      }
+
+      setFabricsTop(updatedTops);
+      setFabricsBacking(updatedBackings);
+      setReadyMadeStocks(updatedRts);
+
+      const success = await saveDatabase({
+        fabricsTop: updatedTops,
+        fabricsBacking: updatedBackings,
+        readyMadeStocks: updatedRts
+      });
+
+      if (success) {
+        setAdminSuccess(`Paired ${matchCountFab} fabrics and ${matchCountRts} RTS items!`);
+      }
+    } catch (err: any) {
+      setAdminError('Auto-matching error: ' + err.message);
+    } finally {
+      setIsAutoMatching(false);
     }
   };
 
-  const currentFormType = adminEditingItem ? adminEditingItem.type : activeAddType;
+  // Group Fabrics & Backings
+  const fabricsByCategory = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    // Add categories from props first
+    categories.forEach(cat => { grouped[cat] = []; });
+    // Add "Backing Fabric"
+    grouped['Backing Fabric'] = [];
+
+    fabricsTop.forEach(f => {
+      const cat = f.category || categories[0] || 'Flowers';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(f);
+    });
+
+    fabricsBacking.forEach(f => {
+      grouped['Backing Fabric'].push(f);
+    });
+
+    // Filter out empty groups, but keep them if we want
+    return grouped;
+  }, [fabricsTop, fabricsBacking, categories]);
+
+  // Group RTS
+  const rtsByCategory = useMemo(() => {
+    const getRtsType = (item: any) => {
+      const name = (item.name || '').toLowerCase();
+      if (name.includes('liner')) return 'Liner';
+      if (name.includes('light')) return 'Light';
+      if (name.includes('moderate') || name.includes('regular')) return 'Moderate';
+      if (name.includes('heavy') || name.includes('night')) return 'Heavy';
+      if (name.includes('extra long') || name.includes('overnight')) return 'Extra Long';
+      return 'Others';
+    };
+
+    const grouped: Record<string, any[]> = {
+      'Liner': [], 'Light': [], 'Moderate': [], 'Heavy': [], 'Extra Long': [], 'Others': []
+    };
+
+    readyMadeStocks.forEach(item => {
+      const cat = getRtsType(item);
+      grouped[cat].push(item);
+    });
+
+    return grouped;
+  }, [readyMadeStocks]);
 
   return (
-    <div className="space-y-4 flex-1 flex flex-col min-h-0 text-zinc-950 font-sans">
-      {/* 1. Header Navigation Controller */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 border-b border-zinc-200 pb-3 flex-none">
-        <div className="flex flex-1 sm:flex-initial gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setAdminView('add');
-              setAdminEditingItem(null);
-              setAdminError('');
-              setAdminSuccess('');
-            }}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
-              adminView === 'add' && !adminEditingItem
-                ? 'bg-zinc-900 text-white shadow-md'
-                : 'bg-white text-zinc-700 border border-zinc-250 hover:bg-zinc-50'
-            }`}
-          >
-            <span>➕</span> Add Something New
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAdminView('edit');
-              setAdminEditingItem(null);
-              setAdminError('');
-              setAdminSuccess('');
-            }}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
-              adminView === 'edit' && !adminEditingItem
-                ? 'bg-zinc-900 text-white shadow-md'
-                : 'bg-white text-zinc-700 border border-zinc-250 hover:bg-zinc-50'
-            }`}
-          >
-            <span>✏️</span> Edit What I Already Have
-          </button>
+    <div className="flex flex-col md:flex-row h-full w-full bg-[#FCFAF6] font-sans text-zinc-800">
+      
+      {/* LEFT SIDEBAR (Desktop) / TOP SELECTOR (Mobile) */}
+      <div className="w-full md:w-60 bg-[#FCFAF6] border-b md:border-b-0 md:border-r border-[#EBE3D5] flex flex-col justify-between p-6 shrink-0">
+        <div className="space-y-8">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-[#EBE3D5]/40">
+            {shopLogoUrl ? (
+              <img src={shopLogoUrl} alt="Logo" className="h-8 w-8 object-contain rounded-lg animate-fadeIn" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-8 w-8 bg-[#922B50] text-white rounded-lg flex items-center justify-center font-black text-xs shadow-3xs">WP</div>
+            )}
+            <div>
+              <h3 className="font-serif font-bold text-[14px] tracking-wide leading-tight text-[#2E1B26]">WonderPads</h3>
+              <p className="text-[8.5px] text-[#8F7080] uppercase font-black tracking-widest mt-0.5">Back Office</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-2 text-[#8F7080]">
+              <span className="text-xs">⊞</span>
+              <p className="text-[10px] uppercase font-black tracking-wider">Navigation</p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSidebar('shop');
+                setAdminError('');
+                setAdminSuccess('');
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium transition-all cursor-pointer ${
+                activeSidebar === 'shop' 
+                  ? 'text-[#2E1B26] font-bold' 
+                  : 'text-[#8F7080] hover:text-[#2E1B26]'
+              }`}
+            >
+              <ShoppingBag className="h-4 w-4 shrink-0 text-[#922B50]" />
+              <span>Shop</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSidebar('settings');
+                setAdminError('');
+                setAdminSuccess('');
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium transition-all cursor-pointer ${
+                activeSidebar === 'settings' 
+                  ? 'text-[#2E1B26] font-bold' 
+                  : 'text-[#8F7080] hover:text-[#2E1B26]'
+              }`}
+            >
+              <Settings className="h-4 w-4 shrink-0 text-[#8F7080]" />
+              <span>Settings</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setAdminView('settings');
-              setAdminEditingItem(null);
-              setAdminError('');
-              setAdminSuccess('');
-            }}
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-[10.5px] uppercase tracking-wider transition-all cursor-pointer ${
-              adminView === 'settings'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'bg-zinc-100 text-zinc-600 border border-zinc-200 hover:bg-zinc-200 hover:text-zinc-800'
-            }`}
-          >
-            <span>⚙️</span> Store Settings
-          </button>
-          
+        <div className="space-y-2 pt-4 border-t border-[#EBE3D5]/40 mt-6 md:mt-0">
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-extrabold text-[10.5px] uppercase tracking-wider bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[10px] font-extrabold uppercase tracking-wider bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 transition-colors cursor-pointer"
             >
-              🚪 Exit Studio Back Office
+              🚪 Exit Back Office
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsAdminAuthenticated(false);
+              setAdminPasswordInput('');
+              localStorage.removeItem('admin_session_auth');
+              setAdminSuccess('Signed out of administrative session.');
+            }}
+            className="w-full text-center text-[8.5px] font-black uppercase text-zinc-400 tracking-widest hover:text-zinc-600 hover:underline py-1"
+          >
+            Sign Out of Session
+          </button>
         </div>
       </div>
 
-      {/* 2. Feedback Panel */}
-      {adminSuccess && (
-        <div className="text-[10.5px] text-emerald-700 bg-emerald-50 border border-emerald-150 p-2.5 rounded-xl font-bold animate-fadeIn text-left flex-none">
-          {adminSuccess}
-        </div>
-      )}
-      {adminError && (
-        <div className="text-[10.5px] text-rose-700 bg-rose-50 border border-rose-150 p-2.5 rounded-xl font-semibold text-left flex-none">
-          {adminError}
-        </div>
-      )}
-
-      {/* 3. SCROLLABLE CONTAINER FOR SECTIONS */}
-      <div className="space-y-5 overflow-y-auto max-h-[74vh] pr-1 scroll-smooth custom-scrollbar flex-1">
+      {/* WORKSPACE AREA */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#FCFAF6] overflow-hidden">
         
-        {/* VIEW A: ADD OR EDITING FORM CONTAINER */}
-        {((adminView === 'add') || adminEditingItem) && (
-          <div className="space-y-4">
-            
-            {/* 5 Easy Option Selection Grid (Only shown when not editing) */}
-            {!adminEditingItem && (
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pb-2 border-b border-zinc-150">
+        {/* WORKSPACE CONTENT BODY */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+          
+          {/* Header row with Serif title and top-right pill switcher */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-[#EBE3D5]/40">
+            <div>
+              <h1 className="font-serif text-3xl md:text-4xl font-medium tracking-tight text-[#2E1B26]">
+                {activeSidebar === 'shop' ? (
+                  activeShopTab === 'fabrics' ? 'Fabrics' :
+                  activeShopTab === 'pads' ? 'Ready-Made Pads' :
+                  activeShopTab === 'pricing' ? 'Pricing & Sizes' :
+                  activeShopTab === 'faq' ? 'FAQ Board' :
+                  activeShopTab === 'blog' ? 'Blog Posts' : 'Shop Categories'
+                ) : (
+                  activeSettingsTab === 'routing' ? 'Store Routing & Password' :
+                  activeSettingsTab === 'publishing' ? 'GitHub Sync' :
+                  activeSettingsTab === 'database' ? 'Backups & Diagnostics' : 'Danger Zone'
+                )}
+              </h1>
+            </div>
+
+            {/* Pills layout next to header */}
+            {activeSidebar === 'shop' ? (
+              <div className="flex flex-wrap gap-1.5">
                 {[
-                  { id: 'fabric', label: 'My Fabric Prints', emoji: '🧵' },
-                  { id: 'pad', label: 'Ready-Made Pads', emoji: '📦' },
-                  { id: 'size', label: 'Pad Sizes', emoji: '📏' },
-                  { id: 'faq', label: 'FAQ Question', emoji: '❓' },
-                  { id: 'blog', label: 'Blog Post', emoji: '📝' },
-                ].map((opt) => (
+                  { id: 'fabrics', label: 'Fabrics' },
+                  { id: 'pads', label: 'Ready-Made Pads' },
+                  { id: 'pricing', label: 'Pricing' },
+                  { id: 'faq', label: 'FAQ' },
+                  { id: 'blog', label: 'Blog' },
+                  { id: 'categories', label: 'Categories' }
+                ].map(t => (
                   <button
-                    key={opt.id}
+                    key={t.id}
                     type="button"
                     onClick={() => {
-                      setActiveAddType(opt.id as any);
+                      setActiveShopTab(t.id as any);
                       setAdminError('');
                       setAdminSuccess('');
-                      resetAddFormStates();
                     }}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer ${
-                      activeAddType === opt.id
-                        ? 'bg-brand-moss/10 border-brand-moss text-brand-moss font-black scale-102 shadow-3xs'
-                        : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300'
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                      activeShopTab === t.id
+                        ? 'bg-[#4E3D30] text-white border-transparent shadow-xs'
+                        : 'bg-white text-[#4E3E3B] border-zinc-200 hover:bg-zinc-50'
                     }`}
                   >
-                    <span className="text-xl mb-1">{opt.emoji}</span>
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold leading-tight">{opt.label}</span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: 'routing', label: 'Routing & Secret' },
+                  { id: 'publishing', label: 'GitHub Sync' },
+                  { id: 'database', label: 'Backups' },
+                  { id: 'danger', label: 'Danger Zone' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveSettingsTab(t.id as any);
+                      setAdminError('');
+                      setAdminSuccess('');
+                    }}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                      activeSettingsTab === t.id
+                        ? 'bg-[#4E3D30] text-white border-transparent shadow-xs'
+                        : 'bg-white text-[#4E3E3B] border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {t.label}
                   </button>
                 ))}
               </div>
             )}
+          </div>
 
-            {/* Interactive Single Form Box */}
-            <div className="bg-white border border-zinc-200 rounded-3xl p-5 md:p-6 shadow-3xs text-left space-y-4 animate-fadeIn">
-              <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
-                <h4 className="text-[11.5px] font-black uppercase text-zinc-850 tracking-wider">
-                  {adminEditingItem 
-                    ? `✏️ Edit Existing ${adminEditingItem.type === 'fabric' ? 'Fabric Print' : adminEditingItem.type === 'pad' ? 'Ready-Made Pad' : adminEditingItem.type === 'size' ? 'Pad Size' : adminEditingItem.type === 'faq' ? 'FAQ Question' : 'Blog Post'}`
-                    : `➕ Add a New ${activeAddType === 'fabric' ? 'Fabric Print' : activeAddType === 'pad' ? 'Ready-Made Pad' : activeAddType === 'size' ? 'Pad Size' : activeAddType === 'faq' ? 'FAQ Question' : 'Blog Post'}`
-                  }
-                </h4>
-                {adminEditingItem && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAdminEditingItem(null);
-                      resetAddFormStates();
-                    }}
-                    className="text-[10px] text-zinc-500 hover:text-zinc-800 underline font-bold cursor-pointer"
-                  >
-                    Cancel Editing
-                  </button>
-                )}
-              </div>
-
-              {/* FORM A: FABRICS */}
-              {currentFormType === 'fabric' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Print Name</label>
+          {/* Feedback alerts inline */}
+          {(adminSuccess || adminError) && (
+            <div className="flex items-center gap-2">
+              {adminSuccess && (
+                <div className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-lg animate-fadeIn flex items-center gap-1.5">
+                  <Check className="h-3 w-3" />
+                  <span>{adminSuccess}</span>
+                </div>
+              )}
+              {adminError && (
+                <div className="text-[10px] font-semibold text-rose-800 bg-rose-50 border border-rose-100 px-3 py-2 rounded-lg animate-fadeIn flex items-center gap-1.5">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>{adminError}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* SHOP MANAGEMENT VIEW CONTAINER */}
+          {activeSidebar === 'shop' && (
+            <div className="space-y-6">
+              
+              {/* TAB 1: FABRICS SECTION */}
+              {activeShopTab === 'fabrics' && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="relative w-full max-w-xs">
+                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
                       <input
                         type="text"
-                        placeholder="e.g., Sunglow Floral, Sage Meadow..."
-                        value={newFabName}
-                        onChange={(e) => setNewFabName(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white focus:ring-1 focus:ring-zinc-400 font-sans font-medium text-zinc-800"
+                        placeholder="Search fabrics..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 text-xs border border-zinc-250 bg-white rounded-xl focus:outline-none focus:bg-zinc-50 font-sans"
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Fabric Category</label>
-                      <select
-                        value={newFabCategory}
-                        onChange={(e) => setNewFabCategory(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white focus:ring-1 focus:ring-zinc-400 font-sans font-medium text-zinc-800"
-                      >
-                        {categories.map((cat: string) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                        <option value="Backing Fabric">Backing Fabric (Hidden from customization selector)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Fabric Material Type</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Cotton Woven, Organic Minky..."
-                        value={newFabMaterial}
-                        onChange={(e) => setNewFabMaterial(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans font-medium"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Premium Price Extra (S$)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., 0.00, 2.50..."
-                        value={newFabPremium}
-                        onChange={(e) => setNewFabPremium(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Stock Status</label>
-                      <select
-                        value={newFabStock}
-                        onChange={(e) => setNewFabStock(e.target.value as any)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans font-medium text-zinc-800"
-                      >
-                        <option value="in_stock">🟢 In Stock (Ready to Craft)</option>
-                        <option value="low_stock">Low Stock (Hurry up)</option>
-                        <option value="out_of_stock">Sold Out (Unavailable)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Fabric Keyword Tags (comma separated)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., florals, pastels, vintage, organic..."
-                      value={newFabProperties}
-                      onChange={(e) => setNewFabProperties(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans"
-                    />
-                  </div>
-
-                  {/* Image field with R2 selection upload */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase block">Photo / Image URL</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Paste image URL here, or upload one below..."
-                        value={newFabImageUrl}
-                        onChange={(e) => setNewFabImageUrl(e.target.value)}
-                        className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono text-zinc-650"
-                      />
-                      <label className="bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-3xs transition-all active:scale-97">
-                        {isUploadingFab ? '...' : '📁 Upload Photo'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={isUploadingFab}
-                          onChange={async (e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              try {
-                                setIsUploadingFab(true);
-                                const url = await handleUploadToR2(e.target.files[0]);
-                                setNewFabImageUrl(url);
-                                setAdminSuccess('Uploaded to library successfully!');
-                                setTimeout(() => setAdminSuccess(''), 2000);
-                              } catch (err: any) {
-                                setAdminError('Upload failed: ' + err.message);
-                              } finally {
-                                setIsUploadingFab(false);
-                              }
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Advanced Lookbook bulk select options collapsed */}
-                  <div className="border-t border-zinc-100 pt-3">
                     <button
                       type="button"
-                      onClick={() => setShowAdvancedImport(!showAdvancedImport)}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-800 flex items-center gap-1 transition-colors focus:outline-none font-bold"
+                      onClick={() => openFabricModal(null)}
+                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      <span>{showAdvancedImport ? '▼' : '▶'}</span> Show Lookbook Selection Tool (Advanced)
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Add Fabric Print</span>
                     </button>
+                  </div>
 
-                    {showAdvancedImport && (
-                      <div className="mt-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3 animate-fadeIn">
-                        <h5 className="text-[9.5px] font-black uppercase text-zinc-800 tracking-wider">Add Photos from My Workshop Library</h5>
-                        <p className="text-[9px] text-zinc-500 leading-relaxed font-medium">
-                          Quickly assign an image from your live Cloudflare R2 media library below.
-                        </p>
+                  {/* Visual collapsible sections by categories */}
+                  <div className="space-y-4">
+                    {Object.entries(fabricsByCategory).map(([catName, list]) => {
+                      // Apply search filter if active
+                      const filteredList = list.filter(f => 
+                        f.name.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+                        (f.material || '').toLowerCase().includes(searchQuery.toLowerCase().trim())
+                      );
 
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              setIsLoadingPhotos(true);
-                              const res = await fetch('/api/lookbook');
-                              if (res.ok) {
-                                const data = await res.json();
-                                setLookbookPhotos(data);
-                                setAdminSuccess('Workshop library refreshed successfully!');
-                              } else {
-                                throw new Error('Unreachable library service');
-                              }
-                            } catch (e: any) {
-                              setAdminError(e.message);
-                            } finally {
-                              setIsLoadingPhotos(false);
-                            }
-                          }}
-                          className="w-full bg-zinc-900 text-white text-[9.5px] font-black tracking-widest uppercase py-2 rounded-lg hover:bg-zinc-800 shadow-3xs cursor-pointer"
-                        >
-                          🔄 Fetch Workshop Media Gallery
-                        </button>
+                      if (searchQuery.trim() && filteredList.length === 0) return null;
 
-                        {lookbookPhotos.length > 0 && (
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[160px] overflow-y-auto p-1 bg-zinc-100 rounded-lg custom-scrollbar">
-                            {lookbookPhotos.map((photo: any) => (
-                              <div 
-                                key={photo.filename} 
-                                className="bg-white rounded-lg border border-zinc-200 overflow-hidden text-center text-[8.5px] leading-tight flex flex-col justify-between"
-                              >
-                                <img 
-                                  src={photo.url} 
-                                  alt={photo.filename} 
-                                  className="h-14 w-full object-cover" 
-                                  referrerPolicy="no-referrer"
-                                />
-                                <div className="p-1">
-                                  <p className="truncate font-mono text-zinc-500">{photo.filename}</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setNewFabImageUrl(photo.url);
-                                      if (!newFabName.trim()) {
-                                        setNewFabName(photo.filename.split('.')[0].replace(/[-_]+/g, ' '));
-                                      }
-                                      setAdminSuccess(`Selected "${photo.filename}" successfully.`);
-                                    }}
-                                    className="mt-1 w-full bg-emerald-50 text-emerald-700 text-[8px] font-extrabold py-0.5 rounded border border-emerald-100 hover:bg-emerald-100 transition-colors"
-                                  >
-                                    Assign
-                                  </button>
+                      const isCollapsed = !!collapsedCategories[catName];
+                      const totalCount = list.length;
+
+                      return (
+                        <div key={catName} className="transition-all">
+                          {/* Accordion header (Styled like the picture's rounded beige bar) */}
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(catName)}
+                            className="w-full flex items-center justify-between px-5 py-3.5 bg-[#F5EDE0] text-[#5E4E4A] hover:bg-[#EBE3D5] rounded-full cursor-pointer select-none transition-colors mb-3"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xs font-bold uppercase tracking-wider text-[#2E1B26]">{catName}</span>
+                              <span className="text-[9.5px] font-bold text-amber-800 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-mono">
+                                {totalCount} prints
+                              </span>
+                            </div>
+                            {isCollapsed ? <ChevronDown className="h-4 w-4 text-zinc-500" /> : <ChevronUp className="h-4 w-4 text-zinc-500" />}
+                          </button>
+
+                          {/* Grid of Visual cards */}
+                          {!isCollapsed && (
+                            <div className="p-1 pb-6 bg-transparent">
+                              {filteredList.length === 0 ? (
+                                <p className="text-xs text-center py-6 text-zinc-400 font-bold">No prints found matching keyword</p>
+                              ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                  {filteredList.map((fab) => (
+                                    <div key={fab.id} className="group relative overflow-hidden bg-white border border-zinc-200 rounded-2xl shadow-3xs hover:border-zinc-350 hover:shadow-2xs transition-all flex flex-col">
+                                      {/* Image Swatch */}
+                                      <div className="relative aspect-square w-full overflow-hidden bg-zinc-100 border-b border-zinc-100 flex items-center justify-center">
+                                        {fab.imageUrl ? (
+                                          <img src={fab.imageUrl} alt={fab.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                                        ) : (
+                                          <div className="text-3xl text-zinc-300 font-bold">🧵</div>
+                                        )}
+                                        {fab.hidden && (
+                                          <span className="absolute top-1.5 right-1.5 bg-zinc-800/80 text-white text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-widest">Hidden</span>
+                                        )}
+                                      </div>
+
+                                      {/* Info */}
+                                      <div className="p-2.5 text-left flex-1 flex flex-col justify-between">
+                                        <div>
+                                          <h5 className="font-bold text-[10.5px] text-zinc-800 truncate" title={fab.name}>{fab.name}</h5>
+                                          <p className="text-[9px] text-zinc-450 mt-0.5">{fab.material || 'Cotton Woven'}</p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-zinc-100">
+                                          <span className="text-[8.5px] font-black uppercase tracking-wider text-zinc-400">
+                                            {fab.premium > 0 ? `+S$${fab.premium.toFixed(2)}` : 'Standard'}
+                                          </span>
+                                          <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 ${
+                                            fab.stockStatus === 'out_of_stock' ? 'bg-rose-50 text-rose-600' :
+                                            fab.stockStatus === 'low_stock' ? 'bg-amber-50 text-amber-600' :
+                                            'bg-emerald-50 text-emerald-600'
+                                          }`}>
+                                            {fab.stockStatus === 'out_of_stock' ? 'Out' :
+                                             fab.stockStatus === 'low_stock' ? 'Low' : 'In Stock'}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Hover Action Overlay Overlay */}
+                                      <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-3xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => openFabricModal(fab)}
+                                          className="bg-white hover:bg-zinc-50 text-zinc-800 font-extrabold text-[10px] p-2 rounded-xl transition-all shadow-3xs flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Edit className="h-3 w-3" /> Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteFabric(fab)}
+                                          className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] p-2 rounded-xl transition-all shadow-3xs flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Trash2 className="h-3 w-3" /> Delete
+                                        </button>
+                                      </div>
+
+                                      {/* Mobile-only visible action buttons below */}
+                                      <div className="md:hidden flex justify-end gap-1 p-1 border-t border-zinc-100 bg-zinc-50">
+                                        <button type="button" onClick={() => openFabricModal(fab)} className="text-[8.5px] font-bold text-zinc-700 hover:underline px-1.5 py-0.5">Edit</button>
+                                        <button type="button" onClick={() => handleDeleteFabric(fab)} className="text-[8.5px] font-bold text-rose-600 hover:underline px-1.5 py-0.5">Del</button>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* FORM B: READY-MADE PADS */}
-              {currentFormType === 'pad' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Product Type (Absorbency Tier)</label>
-                      <select
-                        value={newRtsAbsorbency}
-                        onChange={(e) => {
-                          setNewRtsAbsorbency(e.target.value);
-                          const label = RTS_NAME_MAP[e.target.value] || e.target.value;
-                          setNewRtsName(label);
-                        }}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-800 font-medium"
-                      >
-                        {absorbencyOptions.map((opt: any) => (
-                          <option key={opt.id} value={opt.name}>{opt.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase font-sans">Product Category Name</label>
+              {/* TAB 2: READY-MADE RTS PADS */}
+              {activeShopTab === 'pads' && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="relative w-full max-w-xs">
+                      <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
                       <input
                         type="text"
-                        disabled
-                        value={newRtsName || RTS_NAME_MAP[newRtsAbsorbency] || newRtsAbsorbency}
-                        className="w-full p-2.5 text-xs border border-zinc-200 rounded-xl bg-zinc-100 text-zinc-500 font-sans font-bold cursor-not-allowed"
+                        placeholder="Search ready-made pads..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 text-xs border border-zinc-250 bg-white rounded-xl focus:outline-none focus:bg-zinc-50 font-sans"
                       />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="space-y-1 col-span-2">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Print Selection Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Sunglow, Fox & Ferns..."
-                        value={newRtsPrint}
-                        onChange={(e) => setNewRtsPrint(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans font-medium"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Price (S$)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., 15.00..."
-                        value={newRtsPrice}
-                        onChange={(e) => setNewRtsPrice(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Stock Quantity</label>
-                      <input
-                        type="number"
-                        placeholder="e.g., 1..."
-                        value={newRtsQuantity}
-                        onChange={(e) => setNewRtsQuantity(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-center font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Length / Size Selection</label>
-                      <select
-                        value={newRtsSize}
-                        onChange={(e) => setNewRtsSize(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white text-zinc-800 font-medium font-sans"
-                      >
-                        {sizeOptions.map((opt: any) => (
-                          <option key={opt.id} value={opt.displayLabel}>{opt.displayLabel}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Short Description (For Shoppers)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Ultra-dry fabric lining, handmade..."
-                        value={newRtsDescription}
-                        onChange={(e) => setNewRtsDescription(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-700 font-medium"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Internal Notes (Private)</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Storage shelves, specific flaws, personalized backing selections..."
-                      value={newRtsNotes}
-                      onChange={(e) => setNewRtsNotes(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-700 resize-none leading-relaxed"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase block">Photo / Image</label>
+                    
                     <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Paste image URL, or upload from phone..."
-                        value={newRtsImageUrl}
-                        onChange={(e) => setNewRtsImageUrl(e.target.value)}
-                        className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono text-zinc-650"
-                      />
-                      <label className="bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-3xs transition-all active:scale-97">
-                        {isUploadingRts ? '...' : '📁 Upload Photo'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={isUploadingRts}
-                          onChange={async (e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              try {
-                                setIsUploadingRts(true);
-                                const url = await handleUploadToR2(e.target.files[0]);
-                                setNewRtsImageUrl(url);
-                                setAdminSuccess('Uploaded to library successfully!');
-                                setTimeout(() => setAdminSuccess(''), 2000);
-                              } catch (err: any) {
-                                setAdminError('Upload failed: ' + err.message);
-                              } finally {
-                                setIsUploadingRts(false);
-                              }
-                            }
-                          }}
-                        />
-                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowAdvancedImport(!showAdvancedImport)}
+                        className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 font-extrabold text-[11px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+                      >
+                        🚀 Bulk Lookbook Import
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openRtsModal(null)}
+                        className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add Ready-Made Pad</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* RTS Bulk Import tools collapsed */}
-                  <div className="border-t border-zinc-100 pt-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowAdvancedImport(!showAdvancedImport)}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-800 flex items-center gap-1 transition-colors focus:outline-none font-bold"
-                    >
-                      <span>{showAdvancedImport ? '▼' : '▶'}</span> Show Bulk Import Tools (Advanced)
-                    </button>
-
-                    {showAdvancedImport && (
-                      <div className="mt-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3 animate-fadeIn">
-                        <h5 className="text-[9.5px] font-black uppercase text-zinc-800 tracking-wider">Advanced Import Tools</h5>
-                        <p className="text-[9px] text-zinc-500 leading-normal font-medium">
-                          Quickly create multiple ready-made pads at once matching lookbook folders.
-                        </p>
-
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div className="space-y-0.5">
-                            <label className="text-[8px] text-zinc-500 font-extrabold uppercase">R2 Folder Keyword Filter</label>
-                            <input 
-                              type="text" 
-                              value={rtsBulkImportTag} 
-                              onChange={(e) => setRtsBulkImportTag(e.target.value)}
-                              className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <label className="text-[8px] text-zinc-500 font-extrabold uppercase">Set Shop Category</label>
-                            <select 
-                              value={categories[0] || ''}
-                              className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
-                            >
-                              {categories.map((c: string) => (
-                                <option key={c} value={c}>{c}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
+                  {/* Collapsible bulk import section */}
+                  {showAdvancedImport && (
+                    <div className="bg-zinc-100 p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-inner text-left max-w-lg animate-fadeIn">
+                      <h4 className="text-[11px] font-black uppercase text-zinc-800 tracking-wider">📦 Bulk Create from Lookbook Photos</h4>
+                      <p className="text-[10px] text-zinc-500 leading-normal">
+                        Type in a search keyword (like "kimmi", "pads", or "flowers") matching files in your R2 photo lookbook to automatically batch-import them as ready-made stock pads.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Filename keyword (e.g., flowers)"
+                          value={rtsBulkImportTag}
+                          onChange={(e) => setRtsBulkImportTag(e.target.value)}
+                          className="flex-1 p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                        />
                         <button
                           type="button"
                           disabled={isRtsBulkImporting}
                           onClick={async () => {
+                            if (!rtsBulkImportTag.trim()) return;
                             try {
                               setIsRtsBulkImporting(true);
-                              const response = await fetch('/api/lookbook');
+                              const response = await fetch('/api/lookbook-photos');
                               if (response.ok) {
-                                const photos = await response.json();
-                                const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(rtsBulkImportTag.toLowerCase()));
+                                const data = await response.json();
+                                const photos = (data.photos || []).map((ph: any) => ({
+                                  filename: ph.filename, url: ph.secure_url
+                                }));
+                                const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(rtsBulkImportTag.toLowerCase().trim()));
                                 if (filtered.length === 0) {
-                                  alert(`No lookbook photos found matching the folder name keyword "${rtsBulkImportTag}".`);
+                                  alert(`No photos found matching folder keyword "${rtsBulkImportTag}".`);
                                   return;
                                 }
                                 
@@ -1139,6 +1114,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                                   absorbencyLabel: 'Moderate dry',
                                   imageUrl: p.url,
                                   adminNotes: 'Bulk imported from lookbook folder',
+                                  shape: '',
                                   hidden: false
                                 }));
 
@@ -1156,655 +1132,1081 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                               setIsRtsBulkImporting(false);
                             }
                           }}
-                          className="w-full bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white font-bold text-[9.5px] uppercase tracking-wider py-2 rounded-lg active:scale-97 transition-all shadow-3xs"
+                          className="bg-[#7D8F7D] text-white px-4 py-2 rounded-lg text-xs font-bold"
                         >
-                          {isRtsBulkImporting ? 'Syncing...' : '🚀 Bulk Create Batch'}
+                          {isRtsBulkImporting ? 'Importing...' : '🚀 Execute Import'}
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* RTS Visual grids by categories */}
+                  <div className="space-y-4">
+                    {Object.entries(rtsByCategory).map(([catName, list]) => {
+                      const filteredList = list.filter(item => 
+                        (item.print || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+                        (item.name || '').toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
+                        (item.size || '').toLowerCase().includes(searchQuery.toLowerCase().trim())
+                      );
+
+                      if (searchQuery.trim() && filteredList.length === 0) return null;
+
+                      const isCollapsed = !!collapsedCategories['rts-' + catName];
+                      const totalCount = list.length;
+
+                      return (
+                        <div key={catName} className="transition-all">
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory('rts-' + catName)}
+                            className="w-full flex items-center justify-between px-5 py-3.5 bg-[#F5EDE0] text-[#5E4E4A] hover:bg-[#EBE3D5] rounded-full cursor-pointer select-none transition-colors mb-3"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-xs font-bold uppercase tracking-wider text-[#2E1B26]">{catName} Category</span>
+                              <span className="text-[9.5px] font-bold text-amber-800 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full font-mono">
+                                {totalCount} in catalog
+                              </span>
+                            </div>
+                            {isCollapsed ? <ChevronDown className="h-4 w-4 text-zinc-500" /> : <ChevronUp className="h-4 w-4 text-zinc-500" />}
+                          </button>
+
+                          {!isCollapsed && (
+                            <div className="p-1 pb-6 bg-transparent">
+                              {filteredList.length === 0 ? (
+                                <p className="text-xs text-center py-6 text-zinc-400 font-bold">No ready stock in this category</p>
+                              ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                  {filteredList.map((item) => (
+                                    <div key={item.id} className="group relative overflow-hidden bg-white border border-zinc-200 rounded-2xl shadow-3xs hover:border-zinc-350 hover:shadow-2xs transition-all flex flex-col">
+                                      
+                                      {/* Image container */}
+                                      <div className="relative aspect-square w-full overflow-hidden bg-zinc-100 border-b border-zinc-100 flex items-center justify-center">
+                                        {item.imageUrl ? (
+                                          <img src={item.imageUrl} alt={item.print} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                                        ) : (
+                                          <div className="text-3xl">📦</div>
+                                        )}
+                                        {item.hidden && (
+                                          <span className="absolute top-1.5 right-1.5 bg-zinc-800/80 text-white text-[7.5px] font-black uppercase px-1.5 py-0.5 rounded-full tracking-widest">Hidden</span>
+                                        )}
+                                        {/* Elegant Pad Shape Badge Overlay */}
+                                        {item.shape && (
+                                          <span className="absolute bottom-1.5 left-1.5 bg-zinc-900/90 text-white text-[8px] font-black px-2 py-0.5 rounded-full tracking-wide animate-fadeIn">
+                                            {SHAPE_LABELS[item.shape] || item.shape}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {/* RTS Info */}
+                                      <div className="p-2.5 text-left flex-1 flex flex-col justify-between space-y-1">
+                                        <div>
+                                          <h5 className="font-bold text-[10.5px] text-zinc-800 truncate" title={item.print || item.name}>
+                                            {item.print || 'Ready Release Pad'}
+                                          </h5>
+                                          <p className="text-[9px] text-zinc-550 leading-normal">
+                                            Size: {item.size || '8 inch'} • {item.absorbency || 'Moderate'}
+                                          </p>
+                                          {item.shape && (
+                                            <p className="text-[9px] text-[#922B50] font-bold leading-normal mt-0.5">
+                                              Shape: {SHAPE_LABELS[item.shape] || item.shape}
+                                            </p>
+                                          )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-1.5 border-t border-zinc-100 mt-2">
+                                          <span className="text-[11.5px] font-mono font-black text-zinc-800">S${(item.price || 15.00).toFixed(2)}</span>
+                                          <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${
+                                            (item.quantityLeft || 0) === 0 ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                                          }`}>
+                                            {item.quantityLeft || 0} left
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {/* Hover Action Overlay Overlay */}
+                                      <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-3xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => openRtsModal(item)}
+                                          className="bg-white hover:bg-zinc-50 text-zinc-800 font-extrabold text-[10px] p-2 rounded-xl transition-all shadow-3xs flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Edit className="h-3 w-3" /> Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteRts(item)}
+                                          className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] p-2 rounded-xl transition-all shadow-3xs flex items-center gap-1 cursor-pointer"
+                                        >
+                                          <Trash2 className="h-3 w-3" /> Delete
+                                        </button>
+                                      </div>
+
+                                      {/* Mobile overlay controls */}
+                                      <div className="md:hidden flex justify-end gap-1 p-1 border-t border-zinc-100 bg-zinc-50">
+                                        <button type="button" onClick={() => openRtsModal(item)} className="text-[8.5px] font-bold text-zinc-700 hover:underline px-1.5 py-0.5">Edit</button>
+                                        <button type="button" onClick={() => handleDeleteRts(item)} className="text-[8.5px] font-bold text-rose-600 hover:underline px-1.5 py-0.5">Del</button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: PAD SIZES & PRICING TABLE */}
+              {activeShopTab === 'pricing' && (
+                <div className="space-y-5 text-left">
+                  <div className="flex justify-between items-center pb-2">
+                    <div>
+                      <h4 className="text-[11.5px] font-black uppercase text-zinc-500 tracking-wider">📏 Pad Sizes &amp; Pricing Management</h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">Configure sizing length options, base retail price, backing material upgrades, and additional absorption layer add-ons.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingSize(true)}
+                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-3xs active:scale-97 transition-all"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Add Pad Size</span>
+                    </button>
+                  </div>
+
+                  {/* Clean responsive pricing list table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse font-sans text-xs min-w-[700px]">
+                      <thead>
+                        <tr className="text-[10px] uppercase font-bold tracking-wider text-[#5E4E4A] bg-[#F5EDE0]">
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6">Size ID</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6">Display Label</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6">Length (Inches)</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6 font-mono text-right">Base Price (SGD)</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6 font-mono text-right">Backing Upgrade (SGD)</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6 font-mono text-right">Additional Layer Upgrade (SGD)</th>
+                          <th className="py-3 px-4 first:rounded-l-full last:rounded-r-full first:pl-6 last:pr-6 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-200/60">
+                        {/* Adding inline row if active */}
+                        {isAddingSize && (
+                          <tr className="bg-amber-50/50 border-b border-amber-100 font-medium">
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                placeholder="liner, night_heavy"
+                                value={addSizeId}
+                                onChange={(e) => setAddSizeId(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white font-mono text-xs focus:ring-1 focus:ring-zinc-400 focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="text"
+                                placeholder="Liner (6 inch)"
+                                value={addSizeLabel}
+                                onChange={(e) => setAddSizeLabel(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white text-xs focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="number"
+                                placeholder="8"
+                                value={addSizeLength}
+                                onChange={(e) => setAddSizeLength(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white text-xs focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="number"
+                                step="0.50"
+                                value={addSizePrice}
+                                onChange={(e) => setAddSizePrice(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white font-mono text-xs text-right focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="number"
+                                step="0.10"
+                                value={addSizeBackingUpgrade}
+                                onChange={(e) => setAddSizeBackingUpgrade(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white font-mono text-xs text-right focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <input
+                                type="number"
+                                step="0.10"
+                                value={addSizeLayerUpgrade}
+                                onChange={(e) => setAddSizeLayerUpgrade(e.target.value)}
+                                className="w-full p-1.5 border border-zinc-300 rounded-lg bg-white font-mono text-xs text-right focus:outline-none"
+                              />
+                            </td>
+                            <td className="py-2.5 px-3 text-right space-x-1.5 shrink-0 whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={handleAddSizeInline}
+                                className="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-emerald-700"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddingSize(false)}
+                                className="bg-zinc-200 text-zinc-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-zinc-250"
+                              >
+                                Cancel
+                              </button>
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* Rendering the lists */}
+                        {sizeOptions.map((sz) => {
+                          const isEditingRow = editingSizeId === sz.id;
+                          return (
+                            <tr key={sz.id} className={`hover:bg-zinc-50/50 ${isEditingRow ? 'bg-zinc-50' : ''}`}>
+                              <td className="py-3 px-3 font-mono text-xs text-zinc-550 font-semibold">{sz.id}</td>
+                              <td className="py-3 px-3 font-bold text-zinc-800">
+                                {isEditingRow ? (
+                                  <input
+                                    type="text"
+                                    value={inlineLabel}
+                                    onChange={(e) => setInlineLabel(e.target.value)}
+                                    className="p-1 border border-zinc-300 rounded-md bg-white text-xs w-full focus:outline-none"
+                                  />
+                                ) : (
+                                  sz.displayLabel || sz.name
+                                )}
+                              </td>
+                              <td className="py-3 px-3">
+                                {isEditingRow ? (
+                                  <input
+                                    type="number"
+                                    value={inlineLength}
+                                    onChange={(e) => setInlineLength(e.target.value)}
+                                    className="p-1 border border-zinc-300 rounded-md bg-white text-xs w-20 focus:outline-none"
+                                  />
+                                ) : (
+                                  `${sz.lengthInches || 8} inch`
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-right font-extrabold text-zinc-700">
+                                {isEditingRow ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={inlinePrice}
+                                    onChange={(e) => setInlinePrice(e.target.value)}
+                                    className="p-1 border border-zinc-300 rounded-md bg-white text-xs font-mono w-24 text-right focus:outline-none"
+                                  />
+                                ) : (
+                                  `S$${(sz.basePrice || sz.priceBase || 11.00).toFixed(2)}`
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-right text-zinc-650">
+                                {isEditingRow ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={inlineBackingUpgrade}
+                                    onChange={(e) => setInlineBackingUpgrade(e.target.value)}
+                                    className="p-1 border border-zinc-300 rounded-md bg-white text-xs font-mono w-24 text-right focus:outline-none"
+                                  />
+                                ) : (
+                                  `S$${(sz.backingUpgrade || 0).toFixed(2)}`
+                                )}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-right text-zinc-650">
+                                {isEditingRow ? (
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    value={inlineLayerUpgrade}
+                                    onChange={(e) => setInlineLayerUpgrade(e.target.value)}
+                                    className="p-1 border border-zinc-300 rounded-md bg-white text-xs font-mono w-24 text-right focus:outline-none"
+                                  />
+                                ) : (
+                                  `S$${(sz.layerUpgrade || sz.additionalLayerUpgrade || 0).toFixed(2)}`
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                {isEditingRow ? (
+                                  <div className="flex justify-end gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => saveInlineEdit(sz.id)}
+                                      className="bg-zinc-900 text-white hover:bg-zinc-800 text-[10px] font-black px-2.5 py-1.5 rounded-lg"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingSizeId(null)}
+                                      className="bg-zinc-150 hover:bg-zinc-200 text-zinc-600 text-[10px] font-black px-2.5 py-1.5 rounded-lg"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex justify-end gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => startInlineEdit(sz)}
+                                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer"
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteSizeOption(sz)}
+                                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold px-2 py-1 rounded-lg cursor-pointer"
+                                    >
+                                      🗑️ Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: FAQ QUESTIONS LIST */}
+              {activeShopTab === 'faq' && (
+                <div className="space-y-4 bg-white border border-zinc-200 rounded-3xl p-5 shadow-3xs text-left">
+                  <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
+                    <div>
+                      <h4 className="text-[11.5px] font-black uppercase text-zinc-800 tracking-wider">❓ Administrative FAQ Manager</h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">Publish and keep customer-facing washing, prep care, or fabric guide instructions updated.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openFaqModal(null)}
+                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Add New FAQ</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3 divide-y divide-zinc-100">
+                    {washingFaq.length === 0 ? (
+                      <p className="text-xs text-center py-6 text-zinc-400">No FAQ questions published yet.</p>
+                    ) : (
+                      washingFaq.map((faq, idx) => (
+                        <div key={idx} className="pt-3 flex justify-between gap-4 items-start hover:bg-zinc-50/50 p-2 rounded-xl transition-all">
+                          <div className="space-y-1">
+                            <h5 className="font-bold text-[11.5px] text-zinc-800">Q: {faq.question}</h5>
+                            <p className="text-[10px] text-zinc-550 leading-relaxed">A: {faq.answer}</p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => openFaqModal(faq)}
+                              className="bg-zinc-100 text-zinc-700 text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFaq(faq)}
+                              className="bg-rose-50 text-rose-700 text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
                 </div>
               )}
 
-              {/* FORM C: PAD SIZES */}
-              {currentFormType === 'size' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Unique Size ID (Letters/Underscores Only)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., mini_liner, night_heavy (cannot be changed once saved)..."
-                        disabled={adminEditingItem !== null}
-                        value={newSizeId}
-                        onChange={(e) => setNewSizeId(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white disabled:bg-zinc-100 disabled:text-zinc-500 font-mono"
-                      />
+              {/* TAB 5: BLOG PUBLISHING MANAGER */}
+              {activeShopTab === 'blog' && (
+                <div className="space-y-4 bg-white border border-zinc-200 rounded-3xl p-5 shadow-3xs text-left">
+                  <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
+                    <div>
+                      <h4 className="text-[11.5px] font-black uppercase text-zinc-800 tracking-wider">📝 Educational Blog Posts</h4>
+                      <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">Publish cycles, reusable pad articles, and store announcements to customers.</p>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Short Name</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Liner, Heavy..."
-                        value={newSizeName}
-                        onChange={(e) => setNewSizeName(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-800"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Length (inches)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., 6, 8, 10, 12..."
-                        value={newSizeLength}
-                        onChange={(e) => setNewSizeLength(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Base Price (S$)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., 11.00..."
-                        value={newSizePrice}
-                        onChange={(e) => setNewSizePrice(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase font-sans">Full Display Label</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Mini Pantyliner (6&quot;)"
-                        value={newSizeLabel}
-                        onChange={(e) => setNewSizeLabel(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Length / Width Description</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., Slim 2&quot; snapped width, perfect for light spots..."
-                      value={newSizeDescription}
-                      onChange={(e) => setNewSizeDescription(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* FORM D: FAQ QUESTIONS */}
-              {currentFormType === 'faq' && (
-                <div className="space-y-4">
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">FAQ Question Text</label>
-                    <input
-                      type="text"
-                      placeholder="e.g., How do I prep my new cloth pad before the first use?"
-                      value={newFaqQuestion}
-                      onChange={(e) => setNewFaqQuestion(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-800 font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Detailed Answer</label>
-                    <textarea
-                      rows={5}
-                      placeholder="Provide care tips, soaking instructions, prep advice..."
-                      value={newFaqAnswer}
-                      onChange={(e) => setNewFaqAnswer(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-700 leading-relaxed"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* FORM E: BLOG POSTS */}
-              {currentFormType === 'blog' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1 text-left">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Blog Title</label>
-                      <input
-                        type="text"
-                        placeholder="e.g., Cloth Pads Washing Guide 101..."
-                        value={newBlogTitle}
-                        onChange={(e) => setNewBlogTitle(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-800 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-1 text-left">
-                      <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Author Display Name</label>
-                      <input
-                        type="text"
-                        placeholder="WonderPads"
-                        value={newBlogAuthor}
-                        onChange={(e) => setNewBlogAuthor(e.target.value)}
-                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans font-medium text-zinc-700"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 text-left">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase">Post Content (Markdown or plain text)</label>
-                    <textarea
-                      rows={8}
-                      placeholder="Write your article here..."
-                      value={newBlogContent}
-                      onChange={(e) => setNewBlogContent(e.target.value)}
-                      className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-sans text-zinc-700 leading-relaxed"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-zinc-500 font-extrabold uppercase block">Hero Photo / Image</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Paste image URL, or upload below..."
-                        value={newBlogImageUrl}
-                        onChange={(e) => setNewBlogImageUrl(e.target.value)}
-                        className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:outline-none focus:bg-white font-mono text-zinc-650"
-                      />
-                      <label className="bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white text-xs font-bold py-2.5 px-4 rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shrink-0 shadow-3xs transition-all active:scale-97">
-                        {isUploadingBlog ? '...' : '📁 Upload Photo'}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={isUploadingBlog}
-                          onChange={async (e) => {
-                            if (e.target.files && e.target.files[0]) {
-                              try {
-                                setIsUploadingBlog(true);
-                                const url = await handleUploadToR2(e.target.files[0]);
-                                setNewBlogImageUrl(url);
-                                setAdminSuccess('Uploaded hero image successfully!');
-                                setTimeout(() => setAdminSuccess(''), 2000);
-                              } catch (err: any) {
-                                setAdminError('Upload failed: ' + err.message);
-                              } finally {
-                                setIsUploadingBlog(false);
-                              }
-                            }
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Form Action Controls */}
-              <div className="pt-4 border-t border-zinc-100 flex gap-2 justify-end">
-                {adminEditingItem ? (
-                  <>
                     <button
                       type="button"
-                      onClick={handleSaveUnifiedEdit}
-                      className="bg-zinc-900 hover:bg-zinc-800 text-white font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-97"
+                      onClick={() => openBlogModal(null)}
+                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5"
                     >
-                      💾 Save Changes
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Write Article</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAdminEditingItem(null);
-                        resetAddFormStates();
-                      }}
-                      className="bg-zinc-100 hover:bg-zinc-200 text-zinc-650 font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleAddNewItem}
-                    className="bg-zinc-900 hover:bg-zinc-800 text-white font-black px-6 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all shadow-3xs cursor-pointer active:scale-97"
-                  >
-                    ➕ Save & Register Item
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+                  </div>
 
-        {/* VIEW B: SEARCHABLE COMBINED GALLERY */}
-        {adminView === 'edit' && !adminEditingItem && (
-          <div className="space-y-4 animate-fadeIn text-left">
-            
-            {/* Unified Search Input */}
-            <div className="relative bg-white p-3 rounded-2xl border border-zinc-200 shadow-3xs">
-              <input
-                type="text"
-                placeholder="🔍 Type keywords to search fabrics, pads, sizes, FAQs, or blogs..."
-                value={adminEditSearch}
-                onChange={(e) => setAdminEditSearch(e.target.value)}
-                className="w-full px-4 py-2 text-xs border border-zinc-250 rounded-xl focus:outline-none focus:bg-zinc-50 transition-all font-sans text-zinc-800 font-medium"
-              />
-            </div>
-
-            {/* Combined Catalog List */}
-            <div className="space-y-2 bg-white border border-zinc-200 rounded-3xl p-4 shadow-3xs max-h-[58vh] overflow-y-auto custom-scrollbar">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-400 tracking-wider mb-2.5 px-1">
-                My Active Catalog Preview
-              </h4>
-
-              {(() => {
-                const query = adminEditSearch.toLowerCase().trim();
-                
-                // Aggregate all items
-                const allItems: { type: 'fabric' | 'pad' | 'size' | 'faq' | 'blog', name: string, sub: string, img: string, original: any }[] = [];
-                
-                fabricsTop.forEach(x => {
-                  allItems.push({ type: 'fabric', name: x.name, sub: `Category: ${x.category || 'Top Print'} • Extra: S$${(x.premium || 0).toFixed(2)} • Stock: ${x.stockStatus || 'in_stock'}`, img: x.imageUrl || '', original: x });
-                });
-                fabricsBacking.forEach(x => {
-                  allItems.push({ type: 'fabric', name: x.name, sub: `Category: Backing Fabric • Extra: S$${(x.premium || 0).toFixed(2)}`, img: x.imageUrl || '', original: x });
-                });
-                readyMadeStocks.forEach(x => {
-                  allItems.push({ type: 'pad', name: `${x.print || 'Ready Pad'} (${x.absorbency || 'Moderate'})`, sub: `Size: ${x.size || '8 inch'} • Price: S$${(x.price || 15).toFixed(2)} • Qty Left: ${x.quantityLeft}`, img: x.imageUrl || '', original: x });
-                });
-                sizeOptions.forEach(x => {
-                  allItems.push({ type: 'size', name: x.displayLabel || x.name, sub: `Size ID: ${x.id} • Base Price: S$${(x.basePrice || 11).toFixed(2)}`, img: '', original: x });
-                });
-                washingFaq.forEach(x => {
-                  allItems.push({ type: 'faq', name: x.question, sub: `Answer: ${x.answer.substring(0, 80)}...`, img: '', original: x });
-                });
-                blogPosts.forEach(x => {
-                  allItems.push({ type: 'blog', name: x.title, sub: `By: ${x.author || 'WonderPads'} • ${x.date}`, img: x.imageUrl || '', original: x });
-                });
-
-                // Apply simple search filter
-                const filtered = allItems.filter(x => 
-                  x.name.toLowerCase().includes(query) || 
-                  x.sub.toLowerCase().includes(query) ||
-                  x.type.toLowerCase().includes(query)
-                );
-
-                if (filtered.length === 0) {
-                  return (
-                    <div className="py-12 text-center text-zinc-400 font-sans text-xs">
-                      No results match "{adminEditSearch}".
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="divide-y divide-zinc-100">
-                    {filtered.map((item, idx) => (
-                      <div key={idx} className="py-3 flex items-center justify-between gap-3 hover:bg-zinc-50/50 px-1.5 rounded-xl transition-colors">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {item.img ? (
-                            <img 
-                              src={item.img} 
-                              alt={item.name} 
-                              className="h-10 w-10 object-cover rounded-lg border border-zinc-200 shrink-0" 
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 bg-zinc-100 rounded-lg border border-zinc-200 flex items-center justify-center shrink-0 text-lg">
-                              {item.type === 'size' && '📏'}
-                              {item.type === 'faq' && '❓'}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {blogPosts.length === 0 ? (
+                      <p className="text-xs text-center py-6 text-zinc-400 col-span-full">No articles written yet.</p>
+                    ) : (
+                      blogPosts.map((post) => (
+                        <div key={post.id} className="border border-zinc-200 bg-zinc-50/50 rounded-2xl overflow-hidden shadow-3xs hover:shadow-2xs transition-all flex flex-col justify-between">
+                          <div className="relative h-32 bg-zinc-200">
+                            {post.imageUrl && (
+                              <img src={post.imageUrl} alt={post.title} className="h-full w-full object-cover" />
+                            )}
+                            <div className="absolute top-2 left-2 bg-zinc-900/85 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full">
+                              By {post.author || 'WonderPads'}
                             </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <h5 className="text-[11px] font-bold text-zinc-800 truncate leading-tight">
-                                {item.name}
-                              </h5>
-                              <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full shrink-0 ${
-                                item.type === 'fabric' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                                item.type === 'pad' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                                item.type === 'size' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                                item.type === 'faq' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
-                                'bg-violet-50 text-violet-700 border border-violet-100'
-                              }`}>
-                                {item.type === 'fabric' && '🧵 My Fabric Print'}
-                                {item.type === 'pad' && '📦 Ready-Made'}
-                                {item.type === 'size' && '📏 Pad Size'}
-                                {item.type === 'faq' && '❓ FAQ Question'}
-                                {item.type === 'blog' && '📝 Blog Post'}
-                              </span>
+                          </div>
+                          <div className="p-3 text-left space-y-1.5 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h5 className="font-extrabold text-[11px] text-zinc-800 line-clamp-1">{post.title}</h5>
+                              <p className="text-[9.5px] text-zinc-500 line-clamp-3 leading-relaxed mt-1">
+                                {post.content}
+                              </p>
                             </div>
-                            <p className="text-[9.5px] text-zinc-500 truncate mt-0.5 max-w-[400px]">
-                              {item.sub}
-                            </p>
+                            <div className="flex items-center justify-between pt-2 border-t border-zinc-150 mt-3">
+                              <span className="text-[8.5px] font-mono font-bold text-zinc-400">{post.date}</span>
+                              <div className="flex gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openBlogModal(post)}
+                                  className="text-[9.5px] font-bold text-zinc-700 hover:underline"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteBlog(post)}
+                                  className="text-[9.5px] font-bold text-rose-600 hover:underline"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        
-                        <div className="flex gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => startEditingUnifiedItem(item.type, item.original)}
-                            className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-extrabold text-[9.5px] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUnifiedItem(item.type, item.original)}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-extrabold text-[9.5px] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                          >
-                            🗑️ Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
-                );
-              })()}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW C: RISKY / RARE STORE SETTINGS PANEL */}
-        {adminView === 'settings' && (
-          <div className="space-y-4 animate-fadeIn text-left">
-            
-            {/* 1. Category Management List */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>📂</span> Edit Shop Categories
-              </h4>
-              <p className="text-[9.5px] text-zinc-500 leading-normal">
-                Organize your print filters. Type one category per line to add, modify, or delete filters.
-              </p>
-              <textarea
-                rows={4}
-                value={editingCategoriesText}
-                onChange={(e) => setEditingCategoriesText(e.target.value)}
-                placeholder="Flowers&#10;Kimmi&#10;Characters"
-                className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 font-sans focus:outline-none focus:bg-white leading-relaxed text-zinc-800 font-medium"
-              />
-              <button
-                type="button"
-                onClick={async () => {
-                  const parsed = editingCategoriesText
-                    .split('\n')
-                    .map(line => line.trim())
-                    .filter(Boolean);
-                  if (parsed.length === 0) {
-                    setAdminError('You must have at least one active category.');
-                    return;
-                  }
-                  setCategories(parsed);
-                  const success = await saveDatabase({
-                    settings: {
-                      categories: parsed,
-                      shopLogoUrl,
-                      merchantEmail,
-                      merchantPhone
-                    }
-                  });
-                  if (success) {
-                    setAdminSuccess('Shop categories updated successfully!');
-                  }
-                }}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2 px-3 rounded-lg text-xs transition-all active:scale-97 cursor-pointer"
-              >
-                Save Category Lists
-              </button>
-            </div>
-
-            {/* 2. Order Route Contacts */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>📧</span> Order Receipt Contacts
-              </h4>
-              <p className="text-[9.5px] text-zinc-500 leading-normal">
-                Direct where customer order requests are routed via Email and WhatsApp.
-              </p>
-              <div className="space-y-2">
-                <div className="space-y-0.5">
-                  <label className="text-[8.5px] text-zinc-500 font-extrabold uppercase">Merchant Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. nilam1978@gmail.com"
-                    value={merchantEmail}
-                    onChange={(e) => setMerchantEmail(e.target.value)}
-                    className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-zinc-50 text-zinc-800 font-medium focus:outline-none"
-                  />
                 </div>
-                <div className="space-y-0.5">
-                  <label className="text-[8.5px] text-zinc-500 font-extrabold uppercase">WhatsApp Phone (Country Code First)</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 6583397556"
-                    value={merchantPhone}
-                    onChange={(e) => setMerchantPhone(e.target.value)}
-                    className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-zinc-50 text-zinc-800 font-mono focus:outline-none"
+              )}
+
+              {/* TAB 6: SHOP CATEGORIES (IN SHOP LEVEL) */}
+              {activeShopTab === 'categories' && (
+                <div className="space-y-4 bg-white border border-zinc-200 rounded-3xl p-5 shadow-3xs text-left max-w-xl">
+                  <div>
+                    <h4 className="text-[11.5px] font-black uppercase text-zinc-800 tracking-wider">📂 Edit Shop Categories</h4>
+                    <p className="text-[10px] text-zinc-450 mt-0.5 leading-relaxed">
+                      Configure active category filters. Write exactly one category tag per line. Top fabrics or filters matching these lines will group automatically.
+                    </p>
+                  </div>
+                  <textarea
+                    rows={8}
+                    value={editingCategoriesText}
+                    onChange={(e) => setEditingCategoriesText(e.target.value)}
+                    placeholder="Flowers&#10;Kimmi&#10;Characters"
+                    className="w-full p-3 text-xs border border-zinc-250 rounded-xl bg-zinc-50 font-mono focus:outline-none focus:bg-white leading-relaxed text-zinc-800 font-medium"
                   />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const parsed = editingCategoriesText.split('\n').map(line => line.trim()).filter(Boolean);
+                      if (parsed.length === 0) {
+                        setAdminError('At least one active category is required.');
+                        return;
+                      }
+                      setCategories(parsed);
+                      const success = await saveDatabase({
+                        settings: {
+                          categories: parsed,
+                          shopLogoUrl,
+                          merchantEmail,
+                          merchantPhone
+                        }
+                      });
+                      if (success) {
+                        setAdminSuccess('Shop categories updated successfully!');
+                      }
+                    }}
+                    className="w-full bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all active:scale-97 cursor-pointer"
+                  >
+                    Save Category Configuration
+                  </button>
                 </div>
+              )}
+
+            </div>
+          )}
+
+          {/* SETTINGS VIEW CONTAINER */}
+          {activeSidebar === 'settings' && (
+            <div className="space-y-6">
+              
+              {/* Settings navigation bar */}
+              <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 pb-3">
+                {[
+                  { id: 'routing', label: 'Store Routing & Password', emoji: '📧' },
+                  { id: 'publishing', label: 'GitHub Publishing', emoji: '🐱' },
+                  { id: 'database', label: 'Backups & Diagnostics', emoji: '💾' },
+                  { id: 'danger', label: 'Danger Zone', emoji: '⚠️' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveSettingsTab(t.id as any);
+                      setAdminError('');
+                      setAdminSuccess('');
+                    }}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold uppercase tracking-wide transition-all cursor-pointer ${
+                      activeSettingsTab === t.id
+                        ? 'bg-[#E05C97] text-white shadow-xs'
+                        : 'bg-white text-zinc-650 border border-zinc-200 hover:bg-zinc-100 hover:text-zinc-800'
+                    }`}
+                  >
+                    <span>{t.emoji}</span>
+                    <span>{t.label}</span>
+                  </button>
+                ))}
               </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!merchantEmail.trim()) {
-                    setAdminError('Email address is required.');
-                    return;
-                  }
-                  const success = await saveDatabase({
-                    settings: {
-                      categories,
-                      shopLogoUrl,
-                      merchantEmail: merchantEmail.trim(),
-                      merchantPhone: merchantPhone.trim()
-                    }
-                  });
-                  if (success) {
-                    setAdminSuccess('Order contact settings saved!');
-                  }
-                }}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2 px-3 rounded-lg text-xs transition-all active:scale-97 cursor-pointer"
-              >
-                Save Contact Routing
-              </button>
-            </div>
 
-            {/* 3. Shop Logo Settings */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>🖼️</span> Shop Logo Branding
-              </h4>
-              <p className="text-[9.5px] text-zinc-500 leading-normal">
-                Upload your custom logo to brand your entire storefront customizer.
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Paste URL or upload below..."
-                  value={shopLogoUrl}
-                  onChange={(e) => setShopLogoUrl(e.target.value)}
-                  className="flex-1 p-2 text-xs border border-zinc-250 rounded-lg bg-zinc-50 font-mono focus:outline-none text-zinc-700"
-                />
-                <label className="bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white text-xs font-bold py-2 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1 shrink-0 shadow-3xs transition-all">
-                  {isUploadingLogo ? '...' : '📁 Upload Logo'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={isUploadingLogo}
-                    onChange={async (e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        try {
-                          setIsUploadingLogo(true);
-                          const url = await handleUploadToR2(e.target.files[0]);
-                          setShopLogoUrl(url);
-                          await saveDatabase({
+              {/* SETTINGS SUBTAB 1: ROUTING & CONTACTS */}
+              {activeSettingsTab === 'routing' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
+                  
+                  {/* Order Receipt Contacts */}
+                  <div className="bg-white p-5 rounded-2xl border border-zinc-200 space-y-4 shadow-3xs">
+                    <h4 className="text-[11px] font-black uppercase text-zinc-850 tracking-wider flex items-center gap-1.5">
+                      <span>📧</span> Order Receipt Contacts
+                    </h4>
+                    <p className="text-[10px] text-zinc-400 leading-normal">
+                      Direct where customer bespoke order requests are routed via Email and WhatsApp.
+                    </p>
+                    <div className="space-y-3">
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] text-zinc-500 font-extrabold uppercase">Merchant Email Address</label>
+                        <input
+                          type="email"
+                          placeholder="e.g. nilam1978@gmail.com"
+                          value={merchantEmail}
+                          onChange={(e) => setMerchantEmail(e.target.value)}
+                          className="w-full p-2.5 text-xs border border-zinc-250 rounded-lg bg-zinc-50 text-zinc-800 font-medium focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[9px] text-zinc-500 font-extrabold uppercase">WhatsApp Phone (Country Code First)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 6583397556"
+                          value={merchantPhone}
+                          onChange={(e) => setMerchantPhone(e.target.value)}
+                          className="w-full p-2.5 text-xs border border-zinc-250 rounded-lg bg-zinc-50 text-zinc-850 font-mono focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!merchantEmail.trim()) {
+                          setAdminError('Email address is required.');
+                          return;
+                        }
+                        const success = await saveDatabase({
+                          settings: {
+                            categories,
+                            shopLogoUrl,
+                            merchantEmail: merchantEmail.trim(),
+                            merchantPhone: merchantPhone.trim()
+                          }
+                        });
+                        if (success) setAdminSuccess('Order contact settings saved!');
+                      }}
+                      className="w-full bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold py-2 px-3 rounded-lg text-xs transition-all cursor-pointer"
+                    >
+                      Save Routing Contacts
+                    </button>
+                  </div>
+
+                  {/* Password & Branding */}
+                  <div className="bg-white p-5 rounded-2xl border border-zinc-200 space-y-4 shadow-3xs flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <h4 className="text-[11px] font-black uppercase text-zinc-850 tracking-wider flex items-center gap-1.5">
+                        <span>🔒</span> Administration Security
+                      </h4>
+                      <p className="text-[10px] text-zinc-400 leading-normal">
+                        Update your back-office master password or edit lookbook visibility.
+                      </p>
+                      <input
+                        type="password"
+                        placeholder="Type new secret password..."
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        className="w-full p-2.5 text-xs border border-zinc-250 rounded-lg bg-zinc-50 focus:outline-none text-zinc-850"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!newAdminPassword.trim()) {
+                            setAdminError('Password cannot be empty.');
+                            return;
+                          }
+                          setActivePassword(newAdminPassword.trim());
+                          localStorage.setItem('admin_session_auth', newAdminPassword.trim());
+                          const success = await saveDatabase({
                             settings: {
+                              adminPassword: newAdminPassword.trim(),
                               categories,
-                              shopLogoUrl: url,
+                              shopLogoUrl,
                               merchantEmail,
                               merchantPhone
                             }
                           });
-                          setAdminSuccess('Shop branding logo saved successfully!');
-                        } catch (err: any) {
-                          setAdminError('Logo upload failed: ' + err.message);
-                        } finally {
-                          setIsUploadingLogo(false);
-                        }
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
+                          if (success) {
+                            setAdminSuccess('Admin password changed successfully!');
+                            setNewAdminPassword('');
+                          }
+                        }}
+                        className="w-full bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold py-2 px-3 rounded-lg text-xs transition-all cursor-pointer"
+                      >
+                        Update Master Password
+                      </button>
+                    </div>
 
-            {/* 4. Password Settings */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>🔒</span> Update Admin Password
-              </h4>
-              <div className="space-y-2">
-                <input
-                  type="password"
-                  placeholder="Type new administrative secret..."
-                  value={newAdminPassword}
-                  onChange={(e) => setNewAdminPassword(e.target.value)}
-                  className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-zinc-50 focus:outline-none focus:bg-white text-zinc-800"
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!newAdminPassword.trim()) {
-                      setAdminError('Password cannot be empty.');
-                      return;
-                    }
-                    setActivePassword(newAdminPassword.trim());
-                    localStorage.setItem('admin_session_auth', newAdminPassword.trim());
-                    const success = await saveDatabase({
-                      settings: {
-                        adminPassword: newAdminPassword.trim(),
-                        categories,
-                        shopLogoUrl,
-                        merchantEmail,
-                        merchantPhone
-                      }
-                    });
-                    if (success) {
-                      setAdminSuccess('Password changed successfully!');
-                      setNewAdminPassword('');
-                    }
-                  }}
-                  className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2 px-3 rounded-lg text-xs transition-all cursor-pointer"
-                >
-                  Change Password
-                </button>
-              </div>
-            </div>
+                    <div className="border-t border-zinc-100 pt-3 mt-3 text-left">
+                      <h5 className="text-[10px] font-black uppercase text-zinc-700 tracking-wider mb-2">LOOKBOOK ACTIVE VISIBILITY</h5>
+                      <div className="flex items-center justify-between p-2 bg-zinc-50 rounded-xl border border-zinc-200">
+                        <span className="text-[9.5px] font-bold">Status: {hideLookbookInBackOffice ? "🔴 HIDDEN" : "🟢 LIVE"}</span>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const success = await toggleHideLookbookInBackOffice(!hideLookbookInBackOffice);
+                            if (success) setAdminSuccess('Fabric Gallery visibility changed!');
+                          }}
+                          className="bg-white hover:bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold text-[9px] px-3 py-1.5 rounded-lg"
+                        >
+                          {hideLookbookInBackOffice ? "Set Live" : "Set Placeholder"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* 5. Database Backup and recovery JSON */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>💾</span> Database Backups
-              </h4>
-              <p className="text-[9.5px] text-zinc-500 leading-normal">
-                Export and download all of your current catalog settings as a backup file, or upload a backup file to restore your store.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const databasePayload = {
-                      fabricsTop,
-                      fabricsBacking,
-                      sizeOptions,
-                      absorbencyOptions,
-                      readyMadeStocks,
-                      shapeOptions,
-                      washingFaq,
-                      blogPosts,
-                      settings: {
-                        adminPassword: activePassword,
-                        categories,
-                        shopLogoUrl,
-                        merchantEmail,
-                        merchantPhone
-                      }
-                    };
-                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(databasePayload, null, 2));
-                    const downloadAnchor = document.createElement('a');
-                    downloadAnchor.setAttribute("href", dataStr);
-                    downloadAnchor.setAttribute("download", "customizer-db.json");
-                    document.body.appendChild(downloadAnchor);
-                    downloadAnchor.click();
-                    downloadAnchor.remove();
-                    setAdminSuccess('Backup exported successfully!');
-                  }}
-                  className="w-full bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white font-bold py-2 px-3 rounded-lg text-xs transition-colors shadow-3xs flex items-center justify-center gap-1.5"
-                >
-                  📥 Export Database Backup
-                </button>
+                  {/* Shop Logo & Bulk Auto Match */}
+                  <div className="bg-white p-5 rounded-2xl border border-zinc-200 space-y-4 shadow-3xs md:col-span-2">
+                    <h4 className="text-[11px] font-black uppercase text-zinc-850 tracking-wider flex items-center gap-1.5">
+                      <span>🖼️</span> Branding &amp; Image Auto-Match Utilities
+                    </h4>
+                    <p className="text-[10px] text-zinc-400 leading-relaxed">
+                      Upload your shop logo or automatically match and link R2 lookbook photo files to your fabric patterns.
+                    </p>
 
-                <div className="border-t border-dashed border-zinc-200 pt-2 text-center">
-                  <label className="w-full border border-zinc-250 hover:bg-zinc-50 text-zinc-700 text-xs font-bold py-2 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-colors">
-                    <span>📤</span> Restore from Backup File
-                    <input
-                      type="file"
-                      accept=".json"
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          const file = e.target.files[0];
-                          const reader = new FileReader();
-                          reader.onload = async (event) => {
-                            try {
-                              const parsed = JSON.parse(event.target?.result as string);
-                              if (parsed.fabricsTop || parsed.readyMadeStocks || parsed.sizeOptions) {
-                                if (parsed.fabricsTop) setFabricsTop(parsed.fabricsTop);
-                                if (parsed.fabricsBacking) setFabricsBacking(parsed.fabricsBacking);
-                                if (parsed.sizeOptions) setSizeOptions(parsed.sizeOptions);
-                                if (parsed.absorbencyOptions) setAbsorbencyOptions(parsed.absorbencyOptions);
-                                if (parsed.readyMadeStocks) setReadyMadeStocks(parsed.readyMadeStocks);
-                                if (parsed.shapeOptions) setShapeOptions(parsed.shapeOptions);
-                                if (parsed.washingFaq) setWashingFaq(parsed.washingFaq);
-                                if (parsed.blogPosts) setBlogPosts(parsed.blogPosts);
-                                if (parsed.settings?.categories) {
-                                  setCategories(parsed.settings.categories);
-                                  setEditingCategoriesText(parsed.settings.categories.join('\n'));
-                                }
-                                if (parsed.settings?.shopLogoUrl) setShopLogoUrl(parsed.settings.shopLogoUrl);
-                                if (parsed.settings?.merchantEmail) setMerchantEmail(parsed.settings.merchantEmail);
-                                if (parsed.settings?.merchantPhone) setMerchantPhone(parsed.settings.merchantPhone);
-                                
-                                await saveDatabase({
-                                  fabricsTop: parsed.fabricsTop || fabricsTop,
-                                  fabricsBacking: parsed.fabricsBacking || fabricsBacking,
-                                  sizeOptions: parsed.sizeOptions || sizeOptions,
-                                  absorbencyOptions: parsed.absorbencyOptions || absorbencyOptions,
-                                  readyMadeStocks: parsed.readyMadeStocks || readyMadeStocks,
-                                  shapeOptions: parsed.shapeOptions || shapeOptions,
-                                  washingFaq: parsed.washingFaq || washingFaq,
-                                  blogPosts: parsed.blogPosts || blogPosts,
-                                  settings: {
-                                    adminPassword: parsed.settings?.adminPassword || activePassword,
-                                    categories: parsed.settings?.categories || categories,
-                                    shopLogoUrl: parsed.settings?.shopLogoUrl || shopLogoUrl,
-                                    merchantEmail: parsed.settings?.merchantEmail || merchantEmail,
-                                    merchantPhone: parsed.settings?.merchantPhone || merchantPhone
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Branding Logo URL</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Logo URL link..."
+                            value={shopLogoUrl}
+                            onChange={(e) => setShopLogoUrl(e.target.value)}
+                            className="flex-1 p-2 text-xs border border-zinc-250 rounded-lg bg-zinc-50 font-mono"
+                          />
+                          <label className="bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white text-[10px] font-bold py-2.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1 shrink-0">
+                            {isUploadingLogo ? '...' : '📁 Logo'}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={isUploadingLogo}
+                              onChange={async (e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  try {
+                                    setIsUploadingLogo(true);
+                                    const url = await handleUploadToR2(e.target.files[0]);
+                                    setShopLogoUrl(url);
+                                    await saveDatabase({
+                                      settings: { categories, shopLogoUrl: url, merchantEmail, merchantPhone }
+                                    });
+                                    setAdminSuccess('Shop branding logo saved!');
+                                  } catch (err: any) {
+                                    setAdminError('Upload failed: ' + err.message);
+                                  } finally {
+                                    setIsUploadingLogo(false);
                                   }
-                                });
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
 
-                                setAdminSuccess('Database fully restored from backup!');
-                              } else {
-                                setAdminError('Invalid file structure.');
-                              }
-                            } catch (err: any) {
-                              setAdminError('Parsing error: ' + err.message);
-                            }
+                      <div className="space-y-2 text-left">
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Filename Auto-Match Sync</label>
+                        <button
+                          type="button"
+                          disabled={isAutoMatching || !lookbookPhotos || lookbookPhotos.length === 0}
+                          onClick={runAutoMatch}
+                          className="w-full bg-[#E05C97] hover:bg-[#C43D71] disabled:bg-zinc-300 text-white font-extrabold py-2 px-3 rounded-lg text-xs transition-colors shadow-3xs flex items-center justify-center gap-1.5"
+                        >
+                          {isAutoMatching ? 'Syncing...' : '⚡ Auto-Match R2 Images'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* SETTINGS SUBTAB 2: GITHUB PUBLISHING */}
+              {activeSettingsTab === 'publishing' && (
+                <div className="bg-white p-5 rounded-2xl border border-zinc-200 space-y-4 shadow-3xs text-left max-w-xl">
+                  <h4 className="text-[11px] font-black uppercase text-zinc-850 tracking-wider flex items-center gap-1.5">
+                    <span>🐱</span> GitHub Publishing Sync
+                  </h4>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">
+                    Pushes your updated local JSON database configs directly to the live GitHub repository branch so they become permanent.
+                  </p>
+
+                  <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/50">
+                    <summary className="p-3 text-[10.5px] font-bold text-zinc-700 select-none">
+                      ⚙️ Repository Target Sync Configurations
+                    </summary>
+                    <div className="p-3 border-t border-zinc-150 bg-white grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Username</label>
+                        <input
+                          type="text" value={ghOwner}
+                          onChange={(e) => { setGhOwner(e.target.value); localStorage.setItem('gh_sync_owner', e.target.value); }}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Repo</label>
+                        <input
+                          type="text" value={ghRepo}
+                          onChange={(e) => { setGhRepo(e.target.value); localStorage.setItem('gh_sync_repo', e.target.value); }}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Branch</label>
+                        <input
+                          type="text" value={ghBranch}
+                          onChange={(e) => { setGhBranch(e.target.value); localStorage.setItem('gh_sync_branch', e.target.value); }}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[8.5px] text-zinc-400 font-extrabold uppercase">Commit message</label>
+                        <input
+                          type="text" value={ghCommitMsg} onChange={(e) => setGhCommitMsg(e.target.value)}
+                          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={publishToGithub}
+                    disabled={isPublishingToGithub}
+                    className="w-full bg-zinc-900 hover:bg-zinc-850 disabled:bg-zinc-300 text-white font-extrabold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all"
+                  >
+                    {isPublishingToGithub ? 'Syncing and pushing to branch...' : '🚀 Publish Database to GitHub Repository'}
+                  </button>
+                </div>
+              )}
+
+              {/* SETTINGS SUBTAB 3: DATABASE BACKUPS */}
+              {activeSettingsTab === 'database' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
+                  
+                  {/* Backup & Restore */}
+                  <div className="bg-white p-5 rounded-2xl border border-zinc-200 space-y-4 shadow-3xs">
+                    <h4 className="text-[11px] font-black uppercase text-zinc-850 tracking-wider flex items-center gap-1.5">
+                      <span>💾</span> JSON Database Backups
+                    </h4>
+                    <p className="text-[10px] text-zinc-400 leading-normal">
+                      Export and save your entire customizer configuration schema as a local file, or restore from a previous backup file.
+                    </p>
+
+                    <div className="flex flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const dbPayload = {
+                            fabricsTop, fabricsBacking, sizeOptions, absorbencyOptions, readyMadeStocks, shapeOptions, washingFaq, blogPosts,
+                            settings: { adminPassword: activePassword, categories, shopLogoUrl, merchantEmail, merchantPhone }
                           };
-                          reader.readAsText(file);
+                          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbPayload, null, 2));
+                          const anchor = document.createElement('a');
+                          anchor.setAttribute("href", dataStr);
+                          anchor.setAttribute("download", "customizer-db-backup.json");
+                          document.body.appendChild(anchor);
+                          anchor.click();
+                          anchor.remove();
+                          setAdminSuccess('JSON database backup exported!');
+                        }}
+                        className="w-full bg-[#7D8F7D] hover:bg-[#6C7E6C] text-white font-extrabold py-2.5 px-3 rounded-lg text-xs tracking-wider uppercase transition-colors text-center"
+                      >
+                        📥 Export JSON Database Backup
+                      </button>
+
+                      <div className="border-t border-dashed border-zinc-200 pt-2 text-center">
+                        <label className="w-full border border-zinc-250 hover:bg-zinc-50 text-zinc-700 text-xs font-black py-2.5 px-3 rounded-lg cursor-pointer flex items-center justify-center gap-1.5 transition-colors uppercase">
+                          <span>📤</span> Restore from Backup File
+                          <input
+                            type="file" accept=".json" className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                const reader = new FileReader();
+                                reader.onload = async (ev) => {
+                                  try {
+                                    const parsed = JSON.parse(ev.target?.result as string);
+                                    if (parsed.fabricsTop || parsed.readyMadeStocks || parsed.sizeOptions) {
+                                      if (parsed.fabricsTop) setFabricsTop(parsed.fabricsTop);
+                                      if (parsed.fabricsBacking) setFabricsBacking(parsed.fabricsBacking);
+                                      if (parsed.sizeOptions) setSizeOptions(parsed.sizeOptions);
+                                      if (parsed.absorbencyOptions) setAbsorbencyOptions(parsed.absorbencyOptions);
+                                      if (parsed.readyMadeStocks) setReadyMadeStocks(parsed.readyMadeStocks);
+                                      if (parsed.shapeOptions) setShapeOptions(parsed.shapeOptions);
+                                      if (parsed.washingFaq) setWashingFaq(parsed.washingFaq);
+                                      if (parsed.blogPosts) setBlogPosts(parsed.blogPosts);
+                                      if (parsed.settings?.categories) {
+                                        setCategories(parsed.settings.categories);
+                                        setEditingCategoriesText(parsed.settings.categories.join('\n'));
+                                      }
+                                      if (parsed.settings?.shopLogoUrl) setShopLogoUrl(parsed.settings.shopLogoUrl);
+                                      if (parsed.settings?.merchantEmail) setMerchantEmail(parsed.settings.merchantEmail);
+                                      if (parsed.settings?.merchantPhone) setMerchantPhone(parsed.settings.merchantPhone);
+                                      
+                                      await saveDatabase({
+                                        fabricsTop: parsed.fabricsTop || fabricsTop,
+                                        fabricsBacking: parsed.fabricsBacking || fabricsBacking,
+                                        sizeOptions: parsed.sizeOptions || sizeOptions,
+                                        absorbencyOptions: parsed.absorbencyOptions || absorbencyOptions,
+                                        readyMadeStocks: parsed.readyMadeStocks || readyMadeStocks,
+                                        shapeOptions: parsed.shapeOptions || shapeOptions,
+                                        washingFaq: parsed.washingFaq || washingFaq,
+                                        blogPosts: parsed.blogPosts || blogPosts,
+                                        settings: {
+                                          adminPassword: parsed.settings?.adminPassword || activePassword,
+                                          categories: parsed.settings?.categories || categories,
+                                          shopLogoUrl: parsed.settings?.shopLogoUrl || shopLogoUrl,
+                                          merchantEmail: parsed.settings?.merchantEmail || merchantEmail,
+                                          merchantPhone: parsed.settings?.merchantPhone || merchantPhone
+                                        }
+                                      });
+                                      setAdminSuccess('Database fully restored!');
+                                    }
+                                  } catch (err: any) {
+                                    setAdminError('Restore failed: ' + err.message);
+                                  }
+                                };
+                                reader.readAsText(e.target.files[0]);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Diagnositcs */}
+                  <div className="bg-zinc-100 border border-zinc-200 p-5 rounded-2xl space-y-3 shadow-inner">
+                    <h4 className="text-[11px] font-black uppercase text-zinc-800 tracking-wider">📡 Connection Board &amp; Statuses</h4>
+                    <p className="text-[9.5px] text-zinc-500 leading-relaxed">View persistent cloud integrations, databases, and media storage libraries.</p>
+                    <div className="space-y-1.5 text-xs text-zinc-700">
+                      <div>
+                        <strong>Firebase Firestore DB:</strong>{' '}
+                        {firebaseStatus?.connected ? (
+                          <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px]">🟢 Connected</span>
+                        ) : (
+                          <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px]">🟡 Offline Fallback</span>
+                        )}
+                      </div>
+                      <div>
+                        <strong>R2 Media lookbook:</strong>{' '}
+                        {isR2Mock ? (
+                          <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px]">🟡 Offline Mocked</span>
+                        ) : (
+                          <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px]">🟢 Live R2 Store</span>
+                        )}
+                      </div>
+                      <div><strong>Active Fabrics count:</strong> {fabricsTop.length + fabricsBacking.length}</div>
+                      <div><strong>Active Ready stock RTS count:</strong> {readyMadeStocks.length}</div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* SETTINGS SUBTAB 4: DANGER ZONE */}
+              {activeSettingsTab === 'danger' && (
+                <div className="bg-red-50/50 border border-red-150 p-6 rounded-3xl max-w-lg text-left space-y-4">
+                  <h4 className="text-[12px] font-black uppercase text-red-700 tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle className="h-5 w-5" />
+                    <span>Dangerous Store Administrations</span>
+                  </h4>
+                  <p className="text-[10.5px] text-zinc-650 leading-relaxed">
+                    These actions are final. Wiping the database resets all fabrics, sizing tables, products, FAQs, and blogs. Export a backup before doing this!
+                  </p>
+
+                  {showEraseConfirm ? (
+                    <div className="bg-white p-4 border border-red-200 rounded-2xl space-y-3">
+                      <p className="text-[10px] font-extrabold text-red-900 leading-normal">
+                        Type the word <strong className="font-mono bg-red-100 px-1 py-0.5 text-red-900 rounded">WonderPads</strong> exactly to confirm wipeout:
+                      </p>
+                      <input
+                        type="text" placeholder="Type: WonderPads" value={eraseConfirmText}
+                        onChange={(e) => setEraseConfirmText(e.target.value)}
+                        className="w-full text-center p-2.5 text-xs border border-zinc-250 rounded-xl focus:outline-none focus:ring-1 focus:ring-red-500 font-extrabold"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button" disabled={eraseConfirmText !== 'WonderPads'}
+                          onClick={async () => {
+                            setFabricsTop([]); setFabricsBacking([]); setSizeOptions([]); setAbsorbencyOptions([]); setReadyMadeStocks([]); setWashingFaq([]); setBlogPosts([]);
+                            await saveDatabase({ fabricsTop: [], fabricsBacking: [], sizeOptions: [], absorbencyOptions: [], readyMadeStocks: [], washingFaq: [], blogPosts: [] });
+                            setAdminSuccess('Store fully erased and started fresh!');
+                            setShowEraseConfirm(false);
+                            setEraseConfirmText('');
+                          }}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 rounded-lg text-xs"
+                        >
+                          ERASE ALL DATA NOW
+                        </button>
+                        <button
+                          type="button" onClick={() => { setShowEraseConfirm(false); setEraseConfirmText(''); }}
+                          className="bg-zinc-200 text-zinc-750 font-bold px-4 py-2 rounded-lg text-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowEraseConfirm(true)}
+                      className="bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-2xl transition-all hover:scale-102"
+                    >
+                      💣 Wipe Entire Store Database
+                    </button>
+                  )}
+                </div>
+              )}
+
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* ================= MODAL 1: FABRICS ADD/EDIT ================= */}
+      {fabricModalOpen && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-3xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] text-left">
+            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
+              <h4 className="text-xs font-black uppercase text-zinc-800 tracking-wider">
+                {editingFabric ? '✏️ Edit Fabric Print' : '➕ Add Fabric Print'}
+              </h4>
+              <button type="button" onClick={() => setFabricModalOpen(false)} className="text-zinc-450 hover:text-zinc-800"><X className="h-4 w-4" /></button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Print Name</label>
+                  <input
+                    type="text" value={fabName} onChange={(e) => setFabName(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none text-zinc-800 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Category / Collection</label>
+                  <select
+                    value={fabCategory} onChange={(e) => setFabCategory(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-sans"
+                  >
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="Backing Fabric">Backing Fabric (Hidden from customization selection)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Fabric Material</label>
+                  <input
+                    type="text" value={fabMaterial} onChange={(e) => setFabMaterial(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Premium Cost Upgrade (S$)</label>
+                  <input
+                    type="number" step="0.5" value={fabPremium} onChange={(e) => setFabPremium(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Tags / Properties (Comma-separated)</label>
+                <input
+                  type="text" placeholder="Breathable, Cozy, Stain-resistant" value={fabProperties} onChange={(e) => setFabProperties(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">In Stock Status</label>
+                <div className="flex gap-2">
+                  {['in_stock', 'low_stock', 'out_of_stock'].map((st) => (
+                    <button
+                      key={st} type="button" onClick={() => setFabStock(st as any)}
+                      className={`flex-1 py-1.5 px-3 border rounded-lg text-[10px] font-extrabold uppercase transition-all ${
+                        fabStock === st
+                          ? 'bg-[#7D8F7D] text-white border-[#7D8F7D]'
+                          : 'bg-white text-zinc-600 border-zinc-250 hover:bg-zinc-50'
+                      }`}
+                    >
+                      {st.replace(/_/g, ' ')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Fabric Image Source URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text" placeholder="https://..." value={fabImageUrl} onChange={(e) => setFabImageUrl(e.target.value)}
+                    className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono text-zinc-700"
+                  />
+                  <label className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-bold py-2.5 px-4 rounded-xl cursor-pointer shrink-0">
+                    {isUploadingFab ? '...' : 'Upload File'}
+                    <input
+                      type="file" accept="image/*" className="hidden" disabled={isUploadingFab}
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          try {
+                            setIsUploadingFab(true);
+                            const url = await handleUploadToR2(e.target.files[0]);
+                            setFabImageUrl(url);
+                          } catch (err: any) {
+                            alert(err.message);
+                          } finally {
+                            setIsUploadingFab(false);
+                          }
                         }
                       }}
                     />
@@ -1813,202 +2215,285 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
               </div>
             </div>
 
-            {/* 6. GitHub Syncer */}
-            <div className="bg-white p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-3xs">
-              <h4 className="text-[10.5px] font-black uppercase text-zinc-800 tracking-wider flex items-center gap-1.5">
-                <span>🐱</span> GitHub Publishing Sync
-              </h4>
-              <p className="text-[9.5px] text-zinc-500 leading-normal">
-                Synchronize and push your entire offline database and changes back to your GitHub repository.
-              </p>
-
-              <details className="group border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50/50">
-                <summary className="list-none flex items-center justify-between p-2.5 cursor-pointer text-[10px] font-bold text-zinc-700 hover:bg-zinc-100 select-none transition-colors">
-                  <span>⚙️ Repository Sync Config</span>
-                  <span className="transition-transform group-open:rotate-180 text-[8px] text-zinc-400">▼</span>
-                </summary>
-                <div className="p-2.5 border-t border-zinc-150 bg-white space-y-2 text-xs">
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-[9px] text-emerald-800 leading-relaxed">
-                    🔒 GitHub token is configured server-side (GITHUB_PAT secret) - not stored in the browser.
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[8px] text-zinc-500 font-extrabold uppercase block">Username</label>
-                      <input
-                        type="text"
-                        value={ghOwner}
-                        onChange={(e) => {
-                          setGhOwner(e.target.value);
-                          localStorage.setItem('gh_sync_owner', e.target.value);
-                        }}
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[8px] text-zinc-500 font-extrabold uppercase block">Repo Name</label>
-                      <input
-                        type="text"
-                        value={ghRepo}
-                        onChange={(e) => {
-                          setGhRepo(e.target.value);
-                          localStorage.setItem('gh_sync_repo', e.target.value);
-                        }}
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[8px] text-zinc-500 font-extrabold uppercase block">Branch</label>
-                      <input
-                        type="text"
-                        value={ghBranch}
-                        onChange={(e) => {
-                          setGhBranch(e.target.value);
-                          localStorage.setItem('gh_sync_branch', e.target.value);
-                        }}
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[8px] text-zinc-500 font-extrabold uppercase block">Commit Msg</label>
-                      <input
-                        type="text"
-                        value={ghCommitMsg}
-                        onChange={(e) => setGhCommitMsg(e.target.value)}
-                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-zinc-250 bg-zinc-50"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </details>
-
-              <button
-                type="button"
-                onClick={publishToGithub}
-                disabled={isPublishingToGithub}
-                className="w-full bg-zinc-900 hover:bg-zinc-850 disabled:bg-zinc-400 text-white font-bold py-2.5 px-3 rounded-lg text-xs transition-colors shadow-3xs flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {isPublishingToGithub ? 'Publishing to GitHub...' : 'Push Database to Live GitHub Repository'}
+            <div className="p-4 border-t border-zinc-100 flex gap-2 justify-end bg-zinc-50 rounded-b-3xl">
+              <button type="button" onClick={handleSaveFabric} className="bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl">
+                💾 Save Print Config
+              </button>
+              <button type="button" onClick={() => setFabricModalOpen(false)} className="bg-zinc-200 text-zinc-700 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl">
+                Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* 7. Connection status integrations */}
-            <div className="bg-zinc-100 border border-zinc-250 p-3.5 rounded-2xl space-y-2 text-[10px] text-zinc-650 leading-relaxed">
-              <h5 className="font-bold text-zinc-850 uppercase text-[9px] tracking-wider">Integrations Connection Board</h5>
-              <div>
-                <strong>Firebase Cloud Firestore:</strong>{' '}
-                {firebaseStatus?.connected ? (
-                  <span className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded font-extrabold">🟢 Connected</span>
-                ) : (
-                  <span className="text-amber-600 bg-amber-50 px-1 py-0.5 rounded font-extrabold">🟡 Fallback Active</span>
-                )}
-              </div>
-              <div>
-                <strong>Workshop Media engine:</strong>{' '}
-                {isR2Mock ? (
-                  <span className="text-amber-600 bg-amber-50 px-1 py-0.5 rounded font-extrabold">🟡 Offline Mock Mode</span>
-                ) : (
-                  <span className="text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded font-extrabold">🟢 Live Lookbook Storage</span>
-                )}
-              </div>
+      {/* ================= MODAL 2: READY STOCK ADD/EDIT ================= */}
+      {rtsModalOpen && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-3xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] text-left">
+            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
+              <h4 className="text-xs font-black uppercase text-zinc-800 tracking-wider">
+                {editingRts ? '✏️ Edit Ready-Made Pad' : '➕ Add Ready-Made Pad'}
+              </h4>
+              <button type="button" onClick={() => setRtsModalOpen(false)} className="text-zinc-450 hover:text-zinc-800"><X className="h-4 w-4" /></button>
             </div>
 
-            {/* 8. DANGEROUS RESET SECTION AT THE ABSOLUTE BOTTOM */}
-            <div className="pt-8 border-t border-dashed border-red-200 text-center space-y-3">
-              <h4 className="text-[11px] font-black uppercase text-red-600 tracking-wider">⚠️ Dangerous Store Management</h4>
-              <p className="text-[10px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
-                Only use this if you want to completely wipe your shop and start from scratch — this cannot be undone.
-              </p>
-
-              {showEraseConfirmationModal ? (
-                <div className="bg-red-50 border border-red-150 p-4 rounded-2xl max-w-sm mx-auto space-y-3 animate-fadeIn">
-                  <p className="text-[10px] text-red-800 font-extrabold leading-normal">
-                    To prevent accidents, type the shop name <strong className="font-mono text-xs select-all text-red-900">WonderPads</strong> exactly in the input box below to confirm:
-                  </p>
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Custom Title / Identifier (Optional)</label>
                   <input
-                    type="text"
-                    placeholder="Type: WonderPads"
-                    value={eraseConfirmationInput}
-                    onChange={(e) => setEraseConfirmationInput(e.target.value)}
-                    className="w-full text-center p-2 text-xs border border-red-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 font-bold bg-white text-zinc-800"
+                    type="text" placeholder="Leave empty to auto-calculate name" value={rtsName} onChange={(e) => setRtsName(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
                   />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={eraseConfirmationInput !== 'WonderPads'}
-                      onClick={async () => {
-                        setFabricsTop([]);
-                        setFabricsBacking([]);
-                        setSizeOptions([]);
-                        setAbsorbencyOptions([]);
-                        setReadyMadeStocks([]);
-                        setWashingFaq([]);
-                        setBlogPosts([]);
-                        
-                        const success = await saveDatabase({
-                          fabricsTop: [],
-                          fabricsBacking: [],
-                          sizeOptions: [],
-                          absorbencyOptions: [],
-                          readyMadeStocks: [],
-                          washingFaq: [],
-                          blogPosts: [],
-                        });
+                </div>
 
-                        setShowEraseConfirmationModal(false);
-                        setEraseConfirmationInput('');
-                        if (success) {
-                          setAdminSuccess('Shop has been completely wiped. Starting fresh!');
-                          setAdminView('add');
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Product Category / Absorbency</label>
+                  <select
+                    value={rtsAbsorbency} onChange={(e) => setRtsAbsorbency(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                  >
+                    <option value="Liner">Liner</option>
+                    <option value="Light">Light</option>
+                    <option value="Moderate dry">Moderate</option>
+                    <option value="Heavy dry">Heavy</option>
+                    <option value="Extra Long">Extra Long</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Print Pattern Name</label>
+                  <input
+                    type="text" value={rtsPrint} onChange={(e) => setRtsPrint(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none text-zinc-800 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Size Dimension</label>
+                  <select
+                    value={rtsSize} onChange={(e) => setRtsSize(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                  >
+                    {sizeOptions.map(opt => (
+                      <option key={opt.id} value={opt.displayLabel || opt.name}>{opt.displayLabel || opt.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Price Tag (S$)</label>
+                  <input
+                    type="number" value={rtsPrice} onChange={(e) => setRtsPrice(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Quantity Available</label>
+                  <input
+                    type="number" value={rtsQuantity} onChange={(e) => setRtsQuantity(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono"
+                  />
+                </div>
+
+                {/* RTS Shape field dropdown (Empty first by default for user to fill in, options in dropdown) */}
+                <div className="space-y-1 md:col-span-2">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Pad Shape Design</label>
+                  <select
+                    value={rtsShape} onChange={(e) => setRtsShape(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-sans font-bold"
+                  >
+                    <option value="">-- No Shape Selected (Empty) --</option>
+                    <option value="moon_rise">🌙 MoonRise</option>
+                    <option value="sunglow">☀️ SunGlow</option>
+                    <option value="staple">📎 Staple</option>
+                    <option value="mega_pad">👑 MegaPad</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Product Description</label>
+                <textarea
+                  rows={2} value={rtsDescription} onChange={(e) => setRtsDescription(e.target.value)}
+                  placeholder="Leave empty for generic description"
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Product Image URL Source</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text" placeholder="https://..." value={rtsImageUrl} onChange={(e) => setRtsImageUrl(e.target.value)}
+                    className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono text-zinc-700"
+                  />
+                  <label className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-bold py-2.5 px-4 rounded-xl cursor-pointer shrink-0">
+                    {isUploadingRts ? '...' : 'Upload File'}
+                    <input
+                      type="file" accept="image/*" className="hidden" disabled={isUploadingRts}
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          try {
+                            setIsUploadingRts(true);
+                            const url = await handleUploadToR2(e.target.files[0]);
+                            setRtsImageUrl(url);
+                          } catch (err: any) {
+                            alert(err.message);
+                          } finally {
+                            setIsUploadingRts(false);
+                          }
                         }
                       }}
-                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-zinc-200 disabled:text-zinc-400 text-white font-extrabold py-2 rounded-lg text-xs transition-colors cursor-pointer"
-                    >
-                      ERASE EVERYTHING
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowEraseConfirmationModal(false);
-                        setEraseConfirmationInput('');
-                      }}
-                      className="bg-zinc-200 hover:bg-zinc-250 text-zinc-700 font-extrabold px-3 py-2 rounded-lg text-xs cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                    />
+                  </label>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowEraseConfirmationModal(true)}
-                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-250 font-black text-[10.5px] uppercase tracking-wider px-6 py-3 rounded-2xl transition-all hover:scale-102 cursor-pointer"
-                >
-                  💣 Erase Everything and Start Over
-                </button>
-              )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Private Admin Shelf / Storage Notes</label>
+                <input
+                  type="text" placeholder="Storage shelf, defect notes..." value={rtsNotes} onChange={(e) => setRtsNotes(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                />
+              </div>
             </div>
 
+            <div className="p-4 border-t border-zinc-100 flex gap-2 justify-end bg-zinc-50 rounded-b-3xl">
+              <button type="button" onClick={handleSaveRts} className="bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl">
+                💾 Save RTS Pad
+              </button>
+              <button type="button" onClick={() => setRtsModalOpen(false)} className="bg-zinc-200 text-zinc-700 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl">
+                Cancel
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Unified Sign Out Session button */}
-        <button
-          type="button"
-          onClick={() => {
-            setIsAdminAuthenticated(false);
-            setAdminPasswordInput('');
-            localStorage.removeItem('admin_session_auth');
-            setAdminSuccess('Signed out successfully.');
-            setTimeout(() => setAdminSuccess(''), 2000);
-          }}
-          className="w-full bg-zinc-150 hover:bg-zinc-200 text-zinc-600 font-black py-2.5 rounded-xl text-xs transition-colors uppercase tracking-wider"
-        >
-          Sign Out of Session
-        </button>
+      {/* ================= MODAL 3: FAQ ADD/EDIT ================= */}
+      {faqModalOpen && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-3xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-lg w-full flex flex-col text-left">
+            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
+              <h4 className="text-xs font-black uppercase text-zinc-800 tracking-wider">
+                {editingFaq ? '✏️ Edit FAQ' : '➕ Add FAQ'}
+              </h4>
+              <button type="button" onClick={() => setFaqModalOpen(false)} className="text-zinc-450 hover:text-zinc-800"><X className="h-4 w-4" /></button>
+            </div>
 
-      </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">FAQ Question Text</label>
+                <input
+                  type="text" value={faqQuestion} onChange={(e) => setFaqQuestion(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none text-zinc-800 font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">FAQ Answer</label>
+                <textarea
+                  rows={4} value={faqAnswer} onChange={(e) => setFaqAnswer(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none text-zinc-750 leading-relaxed"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-zinc-100 flex gap-2 justify-end bg-zinc-50 rounded-b-3xl">
+              <button type="button" onClick={handleSaveFaq} className="bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl">
+                💾 Save FAQ
+              </button>
+              <button type="button" onClick={() => setFaqModalOpen(false)} className="bg-zinc-200 text-zinc-700 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 4: BLOG ADD/EDIT ================= */}
+      {blogModalOpen && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-3xs z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-zinc-200 shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh] text-left">
+            <div className="p-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
+              <h4 className="text-xs font-black uppercase text-zinc-800 tracking-wider">
+                {editingBlog ? '✏️ Edit Article' : '📝 New Article'}
+              </h4>
+              <button type="button" onClick={() => setBlogModalOpen(false)} className="text-zinc-450 hover:text-zinc-800"><X className="h-4 w-4" /></button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Article Title</label>
+                  <input
+                    type="text" value={blogTitle} onChange={(e) => setBlogTitle(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-bold text-zinc-800"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] text-zinc-450 font-black uppercase">Author Name</label>
+                  <input
+                    type="text" value={blogAuthor} onChange={(e) => setBlogAuthor(e.target.value)}
+                    className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Content</label>
+                <textarea
+                  rows={6} value={blogContent} onChange={(e) => setBlogContent(e.target.value)}
+                  className="w-full p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none text-zinc-750 leading-relaxed"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] text-zinc-450 font-black uppercase">Cover Photo Image URL</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text" placeholder="https://..." value={blogImageUrl} onChange={(e) => setBlogImageUrl(e.target.value)}
+                    className="flex-1 p-2.5 text-xs border border-zinc-250 rounded-xl bg-zinc-50 focus:bg-white focus:outline-none font-mono text-zinc-700"
+                  />
+                  <label className="bg-zinc-900 hover:bg-zinc-800 text-white text-[10px] font-bold py-2.5 px-4 rounded-xl cursor-pointer shrink-0">
+                    {isUploadingBlog ? '...' : 'Upload File'}
+                    <input
+                      type="file" accept="image/*" className="hidden" disabled={isUploadingBlog}
+                      onChange={async (e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          try {
+                            setIsUploadingBlog(true);
+                            const url = await handleUploadToR2(e.target.files[0]);
+                            setBlogImageUrl(url);
+                          } catch (err: any) {
+                            alert(err.message);
+                          } finally {
+                            setIsUploadingBlog(false);
+                          }
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-zinc-100 flex gap-2 justify-end bg-zinc-50 rounded-b-3xl">
+              <button type="button" onClick={handleSaveBlog} className="bg-zinc-900 hover:bg-zinc-800 text-white font-extrabold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl">
+                💾 Save Article
+              </button>
+              <button type="button" onClick={() => setBlogModalOpen(false)} className="bg-zinc-200 text-zinc-700 font-extrabold text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

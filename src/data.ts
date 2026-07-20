@@ -25,6 +25,9 @@ export interface SizeOption {
   colorLabel?: string;
   minLength: number;
   maxLength: number;
+  backingUpgrade?: number;
+  layerUpgrade?: number;
+  additionalLayerUpgrade?: number;
 }
 export interface ShapeOption {
   id: string;

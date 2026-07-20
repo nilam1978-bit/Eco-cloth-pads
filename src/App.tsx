@@ -1583,6 +1583,7 @@ export default function App() {
       setAdminSuccess(`R2 Storage photo library is now ${val ? 'HIDDEN' : 'LIVE'}!`);
       setTimeout(() => setAdminSuccess(''), 3000);
     }
+    return success;
   };
 
   // Publish changes to GitHub helper
@@ -1817,9 +1818,92 @@ export default function App() {
       const currentList = isBacking ? fabricsBacking : fabricsTop;
       const updatedList = [...currentList];
 
+      const updatedCategoriesSet = new Set(categories);
+      let categoriesAdded = false;
+
+      // Helper helper to clean, match, or dynamically create standard & custom categories
+      const getAutoCategory = (rawName: string): string => {
+        const lower = rawName.trim().toLowerCase();
+        
+        // Match common synonyms of active categories
+        if (lower === 'floral' || lower === 'florals' || lower === 'flower' || lower === 'flowers') {
+          return 'Flowers';
+        }
+        if (lower === 'animal' || lower === 'animals') {
+          return 'Animal';
+        }
+        if (lower === 'character' || lower === 'characters') {
+          return 'Characters';
+        }
+        if (lower === 'organic solid' || lower === 'organic solids' || lower === 'solid' || lower === 'solids') {
+          return 'Organic solid';
+        }
+        if (lower === 'new arrival' || lower === 'new arrivals') {
+          return 'New arrivals';
+        }
+        if (lower === 'leaving soon') {
+          return 'Leaving soon';
+        }
+        if (lower === 'geoed' || lower === 'geo') {
+          return 'Geoed';
+        }
+        if (lower === 'halloween') {
+          return 'Halloween';
+        }
+        if (lower === 'kimmi') {
+          return 'Kimmi';
+        }
+
+        // Search case-insensitively in current categories list
+        const matched = Array.from(updatedCategoriesSet).find(c => c.toLowerCase() === lower);
+        if (matched) return matched;
+
+        // Auto-create category: clean and format nicely to Title Case
+        const formatted = rawName.trim()
+          .replace(/[_-]+/g, ' ')
+          .replace(/\b\w/g, (char) => char.toUpperCase());
+        
+        updatedCategoriesSet.add(formatted);
+        categoriesAdded = true;
+        return formatted;
+      };
+
       for (const p of data.photos) {
+        let itemCategory = bulkImportType;
+
+        // Auto-detect category from R2 key folder OR prefix
+        if (!isBacking) {
+          const keyParts = p.public_id.split('/');
+          
+          if (keyParts.length > 2) {
+            // Case 1: Subfolders present (e.g., wpfabrics/Flowers/Vintage Rose.jpg)
+            const subfolder = keyParts[1].trim();
+            if (subfolder && subfolder.toLowerCase() !== 'backing fabric') {
+              itemCategory = getAutoCategory(subfolder);
+            }
+          } else if (keyParts.length === 2) {
+            // Case 2: No subfolders, files uploaded directly (e.g., wpfabrics/Florals_01.jpg, wpfabrics/Kimmi-abc.png)
+            const filenameWithExt = keyParts[1];
+            const dotIndex = filenameWithExt.lastIndexOf('.');
+            const filename = dotIndex !== -1 ? filenameWithExt.substring(0, dotIndex) : filenameWithExt;
+            
+            // Extract the prefix portion before first space, underscore, dash, or number
+            // e.g. "Florals_01" -> "Florals", "Kimmi-abc" -> "Kimmi", "Abstract 03" -> "Abstract"
+            let prefix = filename.split(/[\s_#-]/)[0];
+            const letterNumberMatch = filename.match(/^([A-Za-z]+)(\d+)/);
+            if (letterNumberMatch) {
+              prefix = letterNumberMatch[1];
+            }
+            
+            if (prefix && prefix.length > 2) {
+              itemCategory = getAutoCategory(prefix);
+            }
+          }
+        }
+
         const cleanName = p.filename
           ? p.filename
+            .substring(0, p.filename.lastIndexOf('.')) // strip extension if present
             .replace(/[_-]/g, ' ')
             .replace(/\b\w/g, (char: string) => char.toUpperCase())
           : 'Wonder Fabric ' + p.public_id.split('/').pop();
@@ -1837,13 +1921,13 @@ export default function App() {
             
           // Preserve existing category, material, and properties if they are already defined to prevent overwriting manual edits (such as the "Batik" category) during bulk sync
           const hasExistingCategory = !!existingItem.category;
-          const isCategoryChanged = !hasExistingCategory && (existingItem.category !== bulkImportType);
+          const isCategoryChanged = !hasExistingCategory && (existingItem.category !== itemCategory);
           const isMaterialChanged = !existingItem.material && (existingItem.material !== (bulkImportMaterial || 'Cotton Woven'));
           const isPropertiesChanged = !existingItem.properties && (JSON.stringify(existingItem.properties) !== JSON.stringify(newProperties));
           
           if (isCategoryChanged || isMaterialChanged || isPropertiesChanged || existingItem.hidden) {
             if (!hasExistingCategory) {
-              existingItem.category = bulkImportType;
+              existingItem.category = itemCategory;
             }
             if (!existingItem.material) {
               existingItem.material = bulkImportMaterial || 'Cotton Woven';
@@ -1874,7 +1958,7 @@ export default function App() {
             ? ['R2_Storage', bulkImportTag, bulkImportCategoryTag]
             : ['R2_Storage', bulkImportTag],
           stockStatus: 'in_stock',
-          category: bulkImportType
+          category: itemCategory
         };
 
         updatedList.push(newFab);
@@ -1885,6 +1969,12 @@ export default function App() {
         setAdminSuccess('');
         setAdminError(`All ${skippedCount} items matching ${tagInfo} are already in your catalog!`);
         return;
+      }
+
+      if (categoriesAdded) {
+        const catArray = Array.from(updatedCategoriesSet);
+        setCategories(catArray);
+        setEditingCategoriesText(catArray.join('\n'));
       }
 
       // Update appropriate state
@@ -1903,7 +1993,10 @@ export default function App() {
         readyMadeStocks,
         shapeOptions,
         washingFaq,
-        settings: { adminPassword: activePassword }
+        settings: { 
+          adminPassword: activePassword,
+          categories: Array.from(updatedCategoriesSet)
+        }
       });
 
       if (success) {
@@ -2143,7 +2236,7 @@ export default function App() {
     }
   };
 
-  // Bulk Rename all top fabrics in sequential order (keeping defaults intact, starting patterns from 01)
+  // Bulk Rename all top fabrics in sequential order (keeping defaults intact, starting patterns from 01 per category)
   const handleBulkSequentialRename = async () => {
     try {
       setAdminError('');
@@ -2155,20 +2248,32 @@ export default function App() {
       const defaults = fabricsTop.filter(f => defaultIds.includes(f.id));
       const patterns = fabricsTop.filter(f => !defaultIds.includes(f.id));
 
-      // Sort patterns the same way they are sorted in the UI list
-      const sortedPatterns = [...patterns].sort((a, b) => 
-        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-      );
+      // Get unique categories present in the custom patterns (or default to 'Flowers' if undefined)
+      const categoriesPresent = Array.from(new Set(patterns.map(f => f.category || 'Flowers')));
+      
+      const renamedPatterns: FabricOption[] = [];
 
-      // Map to sequential numbers starting from 1
-      const renamedPatterns = sortedPatterns.map((fabric, index) => {
-        const formattedNum = (index + 1).toString().padStart(2, '0');
-        return {
-          ...fabric,
-          id: formattedNum,
-          name: formattedNum
-        };
-      });
+      for (const cat of categoriesPresent) {
+        const catPatterns = patterns.filter(f => (f.category || 'Flowers') === cat);
+        // Sort patterns alphabetically within this category
+        const sorted = [...catPatterns].sort((a, b) => 
+          a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        );
+        
+        sorted.forEach((fabric, index) => {
+          const formattedNum = (index + 1).toString().padStart(2, '0');
+          // e.g. "Flowers 01" or "Kimmi 01"
+          const safeCatSlug = cat.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+          const cleanId = `${safeCatSlug}-${formattedNum}`;
+          const cleanName = `${cat} ${formattedNum}`;
+          
+          renamedPatterns.push({
+            ...fabric,
+            id: cleanId,
+            name: cleanName
+          });
+        });
+      }
 
       const updatedTop = [...defaults, ...renamedPatterns];
 
@@ -2187,7 +2292,7 @@ export default function App() {
       if (success) {
         setFabricsTop(updatedTop);
         setAdminError('');
-        setAdminSuccess(`Success! All non-standard fabrics have been sequentially renamed up to "${renamedPatterns.length.toString().padStart(2, '0')}".`);
+        setAdminSuccess(`Success! All non-standard fabrics have been sequentially renamed by category (e.g. Flowers 01, Kimmi 01).`);
       } else {
         throw new Error('Failed to save updated fabrics list to the cloud database.');
       }
@@ -4109,7 +4214,7 @@ export default function App() {
   const floatingUnitPrice = floatingSizeBasePrice + floatingAbsInfo.premium + floatingBackingInfo.premium;
 
   return (
-    <div id="wonder_pads_root" className="min-h-screen bg-brand-cream text-brand-charcoal font-sans antialiased selection:bg-brand-taupe/20 relative overflow-hidden">
+    <div id="wonder_pads_root" className="h-full w-full bg-brand-cream text-brand-charcoal font-sans antialiased selection:bg-brand-taupe/20 relative overflow-hidden flex flex-col">
       
       {/* DECORATIVE BACKGROUND LIGHT SOFT WATERCOLOR SPLASHES */}
       <div className="absolute top-12 left-12 w-96 h-96 bg-brand-pink/40 rounded-full filter blur-3xl pointer-events-none hidden md:block" />
@@ -4120,7 +4225,7 @@ export default function App() {
       {/* LUXURIOUS RESPONSIVE DESKTOP APPLICATION WRAPPER */}
       <div 
         id="smartphone_frame" 
-        className="w-full h-screen bg-transparent flex flex-col overflow-hidden relative transition-all"
+        className="w-full h-full bg-transparent flex flex-col overflow-hidden relative transition-all"
       >
         
         {/* WATERCOLOR BOTANICAL BACKGROUND WASH */}
@@ -7923,29 +8028,33 @@ export default function App() {
             onClick={() => setIsAdminOpen(false)}
           >
             <div 
-              className="w-full h-full bg-zinc-50 p-6 sm:p-8 space-y-4 overflow-y-auto custom-scrollbar select-text flex flex-col justify-start mx-auto shadow-2xl"
+              className={`w-full h-full select-text flex flex-col justify-start mx-auto shadow-2xl overflow-hidden ${
+                isAdminAuthenticated ? 'bg-[#FAF7F2]' : 'bg-zinc-50 p-6 sm:p-8 space-y-4 overflow-y-auto custom-scrollbar'
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header section */}
-              <div className="flex justify-between items-center border-b border-zinc-200 pb-3 flex-none">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">💼</span>
-                  <div>
-                    <h3 className="text-xs font-black text-zinc-900 tracking-wider uppercase font-serif">
-                      Wonder Pads Back Office
-                    </h3>
-                    <p className="text-[9.5px] text-zinc-500 font-sans font-medium">
-                      Administrative Control Center
-                    </p>
+              {!isAdminAuthenticated && (
+                <div className="flex justify-between items-center border-b border-zinc-200 pb-3 flex-none">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">💼</span>
+                    <div>
+                      <h3 className="text-xs font-black text-zinc-900 tracking-wider uppercase font-serif">
+                        Wonder Pads Back Office
+                      </h3>
+                      <p className="text-[9.5px] text-zinc-500 font-sans font-medium">
+                        Administrative Control Center
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setIsAdminOpen(false)}
+                    className="h-6 w-6 rounded-full bg-zinc-200 hover:bg-zinc-250 text-zinc-650 flex items-center justify-center font-bold text-xs transition-colors"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <button
-                  onClick={() => setIsAdminOpen(false)}
-                  className="h-6 w-6 rounded-full bg-zinc-200 hover:bg-zinc-250 text-zinc-650 flex items-center justify-center font-bold text-xs transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
+              )}
 
               {/* AUTHENTICATION LOCK SCREEN */}
               {!isAdminAuthenticated ? (
@@ -8063,6 +8172,8 @@ export default function App() {
                   firebaseStatus={firebaseStatus}
                   setFirebaseStatus={setFirebaseStatus}
                   isR2Mock={isR2Mock}
+                  hideLookbookInBackOffice={hideLookbookInBackOffice}
+                  toggleHideLookbookInBackOffice={toggleHideLookbookInBackOffice}
                 />
                 <div className="hidden space-y-4 flex-1 flex flex-col min-h-0">
                   {/* Tab bar */}

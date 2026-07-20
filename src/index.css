@@ -19,7 +19,14 @@
 }
 
 /* Base style enhancements to ensure beautiful render and background */
-body, html {
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body {
   background-color: #FAF6F8;
   color: #2E1B26;
 }

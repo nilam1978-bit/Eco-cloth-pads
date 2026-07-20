@@ -1,6 +1,6 @@
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
-import { S3Client, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -326,6 +326,45 @@ app.post('/api/media/upload', async (req, res) => {
     });
   } catch (err: any) {
     console.error('R2 Upload Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Media R2 Delete Object
+app.delete('/api/media/delete', async (req, res) => {
+  const adminPasswordHeader = req.headers['x-admin-password'] as string | undefined;
+  const db = await getDbData();
+  const currentPassword = db.settings?.adminPassword || DEFAULT_PASSWORD;
+
+  if (!verifyPassword(adminPasswordHeader, currentPassword)) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const { key } = req.body;
+    if (!key) {
+      res.status(400).json({ error: 'No key provided' });
+      return;
+    }
+
+    const s3 = getS3Client();
+    if (!s3) {
+      res.status(400).json({ error: 'R2 client not initialized' });
+      return;
+    }
+
+    const bucketName = process.env.R2_BUCKET_NAME!;
+    const command = new DeleteObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+    });
+
+    await s3.send(command);
+
+    res.json({ success: true, message: 'Image deleted successfully from storage bucket' });
+  } catch (err: any) {
+    console.error('R2 Delete Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
