@@ -175,6 +175,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   const [addSizePrice, setAddSizePrice] = useState('11.00');
   const [addSizeBackingUpgrade, setAddSizeBackingUpgrade] = useState('0.00');
   const [addSizeLayerUpgrade, setAddSizeLayerUpgrade] = useState('0.00');
+  const [pendingNewSizes, setPendingNewSizes] = useState<any[]>([]);
 
   // Settings Field States
   const [newAdminPassword, setNewAdminPassword] = useState('');
@@ -530,14 +531,16 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   };
 
   // Add Size Inline Save
-  const handleAddSizeInline = async () => {
+  // Queue the current form row into a pending batch, then reset the form for the next row.
+  // Nothing is saved to the database until "Save All" is clicked.
+  const handleQueueSize = () => {
     const cleanId = addSizeId.trim().toLowerCase().replace(/\s+/g, '_');
     if (!cleanId || !addSizeLabel.trim()) {
       setAdminError('Size ID and Display Label are required.');
       return;
     }
-    if (sizeOptions.some(s => s.id === cleanId)) {
-      setAdminError(`Size ID "${cleanId}" already exists.`);
+    if (sizeOptions.some(s => s.id === cleanId) || pendingNewSizes.some(s => s.id === cleanId)) {
+      setAdminError(`Size ID "${cleanId}" already exists or is already queued.`);
       return;
     }
 
@@ -557,18 +560,31 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
       maxLength: parseFloat(addSizeLength) || 8
     };
 
-    const updated = [...sizeOptions, newSz];
+    setPendingNewSizes(prev => [...prev, newSz]);
+    setAdminError('');
+    // Reset the row so the next size can be typed straight away
+    setAddSizeId('');
+    setAddSizeLabel('');
+    setAddSizeLength('8');
+    setAddSizePrice('11.00');
+    setAddSizeBackingUpgrade('0.00');
+    setAddSizeLayerUpgrade('0.00');
+  };
+
+  const handleRemovePendingSize = (id: string) => {
+    setPendingNewSizes(prev => prev.filter(s => s.id !== id));
+  };
+
+  // Commit every queued row to the database in a single save
+  const handleSaveAllPendingSizes = async () => {
+    if (pendingNewSizes.length === 0) return;
+    const updated = [...sizeOptions, ...pendingNewSizes];
     setSizeOptions(updated);
     const success = await saveDatabase({ sizeOptions: updated });
     if (success) {
-      setAdminSuccess('Added new pad size successfully!');
+      setAdminSuccess(`Added ${pendingNewSizes.length} new pad size${pendingNewSizes.length > 1 ? 's' : ''} successfully!`);
+      setPendingNewSizes([]);
       setIsAddingSize(false);
-      setAddSizeId('');
-      setAddSizeLabel('');
-      setAddSizeLength('8');
-      setAddSizePrice('11.00');
-      setAddSizeBackingUpgrade('0.00');
-      setAddSizeLayerUpgrade('0.00');
     }
   };
 
@@ -1262,20 +1278,50 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
               {/* TAB 3: PAD SIZES & PRICING TABLE */}
               {activeShopTab === 'pricing' && (
                 <div className="space-y-5 text-left">
-                  <div className="flex justify-between items-center pb-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pb-2">
                     <div>
                       <h4 className="text-[11.5px] font-black uppercase text-zinc-500 tracking-wider">📏 Pad Sizes &amp; Pricing Management</h4>
                       <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">Configure sizing length options, base retail price, backing material upgrades, and additional absorption layer add-ons.</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingSize(true)}
-                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-3xs active:scale-97 transition-all"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Add Pad Size</span>
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {pendingNewSizes.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleSaveAllPendingSizes}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-3xs active:scale-97 transition-all"
+                        >
+                          <span>💾 Save All ({pendingNewSizes.length})</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingSize(true)}
+                        className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[10.5px] px-3.5 py-2 rounded-xl uppercase tracking-wider cursor-pointer inline-flex items-center gap-1.5 shadow-3xs active:scale-97 transition-all"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add Pad Size</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Queued rows preview - not yet saved */}
+                  {pendingNewSizes.length > 0 && (
+                    <div className="bg-emerald-50/60 border border-emerald-150 rounded-xl p-3 space-y-1.5">
+                      <p className="text-[9.5px] font-black uppercase tracking-wider text-emerald-800">
+                        {pendingNewSizes.length} row{pendingNewSizes.length > 1 ? 's' : ''} queued — click "Save All" to write them all at once
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {pendingNewSizes.map((s) => (
+                          <span key={s.id} className="inline-flex items-center gap-1.5 bg-white border border-emerald-200 text-[10px] font-bold text-zinc-700 px-2.5 py-1 rounded-full">
+                            {s.displayLabel} · S${s.priceBase.toFixed(2)}
+                            <button type="button" onClick={() => handleRemovePendingSize(s.id)} className="text-zinc-400 hover:text-rose-600">
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Clean responsive pricing list table */}
                   <div className="overflow-x-auto">
@@ -1352,14 +1398,15 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                             <td className="py-2.5 px-3 text-right space-x-1.5 shrink-0 whitespace-nowrap">
                               <button
                                 type="button"
-                                onClick={handleAddSizeInline}
-                                className="bg-emerald-600 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-emerald-700"
+                                onClick={handleQueueSize}
+                                title="Add this row to the batch, then keep typing the next one"
+                                className="bg-zinc-900 text-white font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-zinc-800"
                               >
-                                Save
+                                + Queue Row
                               </button>
                               <button
                                 type="button"
-                                onClick={() => setIsAddingSize(false)}
+                                onClick={() => { setIsAddingSize(false); setPendingNewSizes([]); }}
                                 className="bg-zinc-200 text-zinc-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-lg hover:bg-zinc-250"
                               >
                                 Cancel
@@ -2211,6 +2258,24 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                       }}
                     />
                   </label>
+                </div>
+
+                {/* Live thumbnail preview */}
+                <div className="mt-2 h-28 w-28 rounded-xl border border-zinc-250 bg-zinc-50 overflow-hidden flex items-center justify-center">
+                  {isUploadingFab ? (
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase">Uploading...</span>
+                  ) : fabImageUrl.trim() ? (
+                    <img
+                      key={fabImageUrl}
+                      src={fabImageUrl}
+                      alt="Fabric preview"
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase text-center px-2">No image yet</span>
+                  )}
                 </div>
               </div>
             </div>
