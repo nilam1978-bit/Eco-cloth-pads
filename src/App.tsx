@@ -5079,11 +5079,18 @@ export default function App() {
                                 </button>
                               </div>
                               
-                              {!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) && (
+                              {(!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) || pack.shape) && (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="inline-block text-[8px] sm:text-[9.5px] font-black text-brand-moss bg-brand-cream/80 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider shrink-0">
-                                    {pack.computedCategory}
-                                  </span>
+                                  {!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) && (
+                                    <span className="inline-block text-[8px] sm:text-[9.5px] font-black text-brand-moss bg-brand-cream/80 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider shrink-0">
+                                      {pack.computedCategory}
+                                    </span>
+                                  )}
+                                  {pack.shape && (
+                                    <span className="inline-block text-[8px] sm:text-[9.5px] font-bold text-[#8A5A87] bg-[#8A5A87]/10 px-1.5 py-0.5 rounded font-sans tracking-wide shrink-0">
+                                      Shape: {SHAPE_OPTIONS.find(s => s.id === pack.shape)?.name || pack.shape}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                               
