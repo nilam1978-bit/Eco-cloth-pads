@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Edit, Trash2, Plus, Search, Settings, ShoppingBag, X, ChevronDown, ChevronUp, 
   Folder, FileText, Database, Github, Lock, Upload, Check, Eye, EyeOff, 
-  RefreshCw, HelpCircle, BookOpen, AlertTriangle 
+  RefreshCw, HelpCircle, BookOpen, AlertTriangle, LogOut
 } from 'lucide-react';
 
 const RTS_NAME_MAP: Record<string, string> = {
@@ -711,8 +711,8 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-[#FCFAF6] font-sans text-zinc-800">
       
-      {/* LEFT SIDEBAR (Desktop) / TOP SELECTOR (Mobile) */}
-      <div className="w-full md:w-60 bg-[#FCFAF6] border-b md:border-b-0 md:border-r border-[#EBE3D5] flex flex-col justify-between p-6 shrink-0">
+      {/* LEFT SIDEBAR (Desktop only) */}
+      <div className="hidden md:flex md:w-60 bg-[#FCFAF6] md:border-r border-[#EBE3D5] flex-col justify-between p-6 shrink-0">
         <div className="space-y-8">
           <div className="flex items-center gap-2.5 pb-4 border-b border-[#EBE3D5]/40">
             {shopLogoUrl ? (
@@ -768,7 +768,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
           </div>
         </div>
 
-        <div className="space-y-2 pt-4 border-t border-[#EBE3D5]/40 mt-6 md:mt-0">
+        <div className="space-y-2 pt-4 border-t border-[#EBE3D5]/40">
           {onClose && (
             <button
               type="button"
@@ -794,8 +794,86 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
         </div>
       </div>
 
+      {/* TOP SELECTOR (Mobile only) — compact header with pill switcher */}
+      <div className="md:hidden flex items-center justify-between gap-2 px-4 py-3 border-b border-[#EBE3D5] bg-[#FCFAF6] shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {shopLogoUrl ? (
+            <img src={shopLogoUrl} alt="Logo" className="h-7 w-7 object-contain rounded-lg shrink-0" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="h-7 w-7 bg-[#922B50] text-white rounded-lg flex items-center justify-center font-black text-[10px] shrink-0">WP</div>
+          )}
+          <p className="text-[8.5px] text-[#8F7080] uppercase font-black tracking-widest truncate">Back Office</p>
+        </div>
+
+        <div className="flex items-center bg-white border border-zinc-200 rounded-full p-1 gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSidebar('shop');
+              setAdminError('');
+              setAdminSuccess('');
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+              activeSidebar === 'shop'
+                ? 'bg-[#4E3D30] text-white shadow-xs'
+                : 'text-[#8F7080]'
+            }`}
+          >
+            <ShoppingBag className="h-3.5 w-3.5 shrink-0" />
+            Shop
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveSidebar('settings');
+              setAdminError('');
+              setAdminSuccess('');
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+              activeSidebar === 'settings'
+                ? 'bg-[#4E3D30] text-white shadow-xs'
+                : 'text-[#8F7080]'
+            }`}
+          >
+            <Settings className="h-3.5 w-3.5 shrink-0" />
+            Settings
+          </button>
+        </div>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Exit Back Office"
+            className="h-8 w-8 shrink-0 flex items-center justify-center rounded-full bg-rose-50 text-rose-600 border border-rose-100 cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {/* FIXED SIGN OUT BAR (Mobile only) */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#EBE3D5] px-4 py-2 flex items-center justify-center"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            setIsAdminAuthenticated(false);
+            setAdminPasswordInput('');
+            localStorage.removeItem('admin_session_auth');
+            setAdminSuccess('Signed out of administrative session.');
+          }}
+          className="flex items-center gap-1.5 text-[10px] font-black uppercase text-zinc-400 tracking-widest hover:text-zinc-600 py-1 cursor-pointer"
+        >
+          <LogOut className="h-3 w-3" />
+          Sign Out of Session
+        </button>
+      </div>
+
       {/* WORKSPACE AREA */}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#FCFAF6] overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 bg-[#FCFAF6] overflow-hidden pb-12 md:pb-0">
         
         {/* WORKSPACE CONTENT BODY */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
