@@ -229,9 +229,107 @@ app.get('/api/media/photos', async (req, res) => {
   }
 
   try {
+    const tagParam = req.query.tag !== undefined ? req.query.tag : req.query.prefix;
+    let prefix: string | undefined = 'wpfabrics/'; // Default to wpfabrics/
+
+    if (tagParam !== undefined) {
+      const trimmed = String(tagParam).trim();
+      if (trimmed === '' || trimmed.toLowerCase() === 'all') {
+        prefix = undefined; // List the entire bucket
+      } else {
+        prefix = trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+      }
+    }
+
     const command = new ListObjectsV2Command({
       Bucket: bucketName,
-      Prefix: 'wpfabrics/',
+      Prefix: prefix,
+    });
+    const response = await s3.send(command);
+    const cleanPublicUrl = publicUrl!.endsWith('/') ? publicUrl! : `${publicUrl!}/`;
+    
+    const photos = (response.Contents || []).map((item) => {
+      const secure_url = `${cleanPublicUrl}${item.Key}`;
+      const filename = item.Key!.split('/').pop() || item.Key!;
+      return {
+        public_id: item.Key!,
+        secure_url,
+        filename,
+        created_at: item.LastModified ? item.LastModified.toISOString() : new Date().toISOString()
+      };
+    });
+
+    res.json({
+      photos,
+      isMock: false,
+      missingVars: []
+    });
+  } catch (err: any) {
+    console.error('Error listing R2 bucket objects:', err);
+    res.json({
+      photos: [],
+      isMock: false,
+      error: err.message,
+      missingVars: []
+    });
+  }
+});
+
+// API: Lookbook Photos List (used by Bulk RTS Import)
+app.get('/api/lookbook-photos', async (req, res) => {
+  const bucketName = process.env.R2_BUCKET_NAME;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const publicUrl = process.env.R2_PUBLIC_URL;
+  const endpoint = process.env.R2_ENDPOINT;
+
+  const missingVars = [];
+  if (!bucketName) missingVars.push('R2_BUCKET_NAME');
+  if (!accessKeyId) missingVars.push('R2_ACCESS_KEY_ID');
+  if (!secretAccessKey) missingVars.push('R2_SECRET_ACCESS_KEY');
+  if (!publicUrl) missingVars.push('R2_PUBLIC_URL');
+  if (!endpoint) missingVars.push('R2_ENDPOINT');
+
+  const s3 = getS3Client();
+
+  if (missingVars.length > 0 || !s3) {
+    res.json({
+      photos: [
+        {
+          public_id: 'sample_print_1',
+          secure_url: 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=400&auto=format&fit=crop&q=60',
+          filename: 'Pastel Florals.png',
+          created_at: new Date().toISOString()
+        },
+        {
+          public_id: 'sample_print_2',
+          secure_url: 'https://images.unsplash.com/photo-1558244661-d248897f7bc4?w=400&auto=format&fit=crop&q=60',
+          filename: 'Golden Honeycomb.png',
+          created_at: new Date().toISOString()
+        }
+      ],
+      isMock: true,
+      missingVars
+    });
+    return;
+  }
+
+  try {
+    const tagParam = req.query.tag !== undefined ? req.query.tag : req.query.prefix;
+    let prefix: string | undefined = undefined; // By default for RTS lookbook, fetch all files in bucket to filter client-side
+
+    if (tagParam !== undefined) {
+      const trimmed = String(tagParam).trim();
+      if (trimmed === '' || trimmed.toLowerCase() === 'all') {
+        prefix = undefined;
+      } else {
+        prefix = trimmed.endsWith('/') ? trimmed : `${trimmed}/`;
+      }
+    }
+
+    const command = new ListObjectsV2Command({
+      Bucket: bucketName,
+      Prefix: prefix,
     });
     const response = await s3.send(command);
     const cleanPublicUrl = publicUrl!.endsWith('/') ? publicUrl! : `${publicUrl!}/`;

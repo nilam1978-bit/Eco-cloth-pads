@@ -1882,21 +1882,27 @@ export default function App() {
               itemCategory = getAutoCategory(subfolder);
             }
           } else if (keyParts.length === 2) {
-            // Case 2: No subfolders, files uploaded directly (e.g., wpfabrics/Florals_01.jpg, wpfabrics/Kimmi-abc.png)
-            const filenameWithExt = keyParts[1];
-            const dotIndex = filenameWithExt.lastIndexOf('.');
-            const filename = dotIndex !== -1 ? filenameWithExt.substring(0, dotIndex) : filenameWithExt;
-            
-            // Extract the prefix portion before first space, underscore, dash, or number
-            // e.g. "Florals_01" -> "Florals", "Kimmi-abc" -> "Kimmi", "Abstract 03" -> "Abstract"
-            let prefix = filename.split(/[\s_#-]/)[0];
-            const letterNumberMatch = filename.match(/^([A-Za-z]+)(\d+)/);
-            if (letterNumberMatch) {
-              prefix = letterNumberMatch[1];
-            }
-            
-            if (prefix && prefix.length > 2) {
-              itemCategory = getAutoCategory(prefix);
+            // Case 2: Folder name is the first part (e.g., MyFolder1/Daisies.jpg)
+            const folderName = keyParts[0].trim();
+            if (folderName && folderName.toLowerCase() !== 'wpfabrics' && folderName.toLowerCase() !== 'backing fabric') {
+              itemCategory = getAutoCategory(folderName);
+            } else {
+              // Files uploaded directly (e.g., wpfabrics/Florals_01.jpg)
+              const filenameWithExt = keyParts[1];
+              const dotIndex = filenameWithExt.lastIndexOf('.');
+              const filename = dotIndex !== -1 ? filenameWithExt.substring(0, dotIndex) : filenameWithExt;
+              
+              // Extract the prefix portion before first space, underscore, dash, or number
+              // e.g. "Florals_01" -> "Florals", "Kimmi-abc" -> "Kimmi", "Abstract 03" -> "Abstract"
+              let prefix = filename.split(/[\s_#-]/)[0];
+              const letterNumberMatch = filename.match(/^([A-Za-z]+)(\d+)/);
+              if (letterNumberMatch) {
+                prefix = letterNumberMatch[1];
+              }
+              
+              if (prefix && prefix.length > 2) {
+                itemCategory = getAutoCategory(prefix);
+              }
             }
           }
         }
@@ -5079,18 +5085,11 @@ export default function App() {
                                 </button>
                               </div>
                               
-                              {(!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) || pack.shape) && (
+                              {!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) && (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  {!(pack.name.toLowerCase().includes(pack.computedCategory.toLowerCase()) || (pack.print && pack.print.toLowerCase().includes(pack.computedCategory.toLowerCase()))) && (
-                                    <span className="inline-block text-[8px] sm:text-[9.5px] font-black text-brand-moss bg-brand-cream/80 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider shrink-0">
-                                      {pack.computedCategory}
-                                    </span>
-                                  )}
-                                  {pack.shape && (
-                                    <span className="inline-block text-[8px] sm:text-[9.5px] font-bold text-[#8A5A87] bg-[#8A5A87]/10 px-1.5 py-0.5 rounded font-sans tracking-wide shrink-0">
-                                      Shape: {SHAPE_OPTIONS.find(s => s.id === pack.shape)?.name || pack.shape}
-                                    </span>
-                                  )}
+                                  <span className="inline-block text-[8px] sm:text-[9.5px] font-black text-brand-moss bg-brand-cream/80 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider shrink-0">
+                                    {pack.computedCategory}
+                                  </span>
                                 </div>
                               )}
                               
