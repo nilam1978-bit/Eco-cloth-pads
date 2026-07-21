@@ -614,7 +614,7 @@ async function startServer() {
     app.use(express.static(path.join(getDirname(), 'dist')));
 
     // For SPA routing, serve index.html for any remaining routes
-    app.get('*', (req, res) => {
+    app.get('/*splat', (req, res) => {
       const indexPath = path.join(getDirname(), 'dist', 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
