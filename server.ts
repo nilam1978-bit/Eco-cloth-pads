@@ -611,11 +611,11 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // Serve frontend static files
-    app.use(express.static(path.join(getDirname(), 'dist')));
+    app.use(express.static(getDirname()));
 
     // For SPA routing, serve index.html for any remaining routes
     app.get('/*splat', (req, res) => {
-      const indexPath = path.join(getDirname(), 'dist', 'index.html');
+      const indexPath = path.join(getDirname(), 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath);
       } else {
