@@ -187,6 +187,18 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   const [rtsBulkImportTag, setRtsBulkImportTag] = useState('pads');
   const [isRtsBulkImporting, setIsRtsBulkImporting] = useState(false);
   const [showAdvancedImport, setShowAdvancedImport] = useState(false);
+  const [rtsBulkPreview, setRtsBulkPreview] = useState<any[] | null>(null);
+  const [rtsBulkSize, setRtsBulkSize] = useState('Regular Day (8")');
+  const [rtsBulkAbsorbency, setRtsBulkAbsorbency] = useState('Moderate dry');
+  const [rtsBulkPrice, setRtsBulkPrice] = useState('15.00');
+
+  // Fabric bulk import
+  const [showFabricAdvancedImport, setShowFabricAdvancedImport] = useState(false);
+  const [fabricBulkImportTag, setFabricBulkImportTag] = useState('');
+  const [isFabricBulkImporting, setIsFabricBulkImporting] = useState(false);
+  const [fabricBulkPreview, setFabricBulkPreview] = useState<any[] | null>(null);
+  const [fabricBulkCategory, setFabricBulkCategory] = useState('');
+  const [fabricBulkMaterial, setFabricBulkMaterial] = useState('Cotton Woven');
 
   // Toggle collapses
   const toggleCategory = (catName: string) => {
@@ -286,6 +298,62 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
     setFabricsBacking(updatedBackings);
     await saveDatabase({ fabricsTop: updatedTops, fabricsBacking: updatedBackings });
     setAdminSuccess('Fabric print deleted successfully.');
+  };
+
+  // Fabric Bulk Import — Step 1: preview matches, no DB writes yet
+  const handlePreviewFabricBulkImport = async () => {
+    if (!fabricBulkImportTag.trim()) return;
+    try {
+      setIsFabricBulkImporting(true);
+      const response = await fetch('/api/lookbook-photos');
+      if (response.ok) {
+        const data = await response.json();
+        const photos = (data.photos || []).map((ph: any) => ({
+          filename: ph.filename, url: ph.secure_url
+        }));
+        const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(fabricBulkImportTag.toLowerCase().trim()));
+        if (filtered.length === 0) {
+          alert(`No photos found matching keyword "${fabricBulkImportTag}".`);
+          setFabricBulkPreview(null);
+        } else {
+          setFabricBulkPreview(filtered);
+        }
+      }
+    } catch (err: any) {
+      setAdminError('Preview failed: ' + err.message);
+    } finally {
+      setIsFabricBulkImporting(false);
+    }
+  };
+
+  // Fabric Bulk Import — Step 2: confirm and actually create fabric entries
+  const handleConfirmFabricBulkImport = async () => {
+    if (!fabricBulkPreview || fabricBulkPreview.length === 0) return;
+    const chosenCategory = fabricBulkCategory || categories[0] || 'Flowers';
+    const importedFabrics = fabricBulkPreview.map((p: any, index: number) => ({
+      id: 'fab-' + Date.now() + '-' + index,
+      name: p.filename.split('.')[0].replace(/[-_]+/g, ' '),
+      type: 'top',
+      material: fabricBulkMaterial.trim() || 'Cotton Woven',
+      description: 'Wonder Premium Pattern',
+      colorHex: '#ffffff',
+      premium: 0,
+      properties: [],
+      stockStatus: 'in_stock',
+      category: chosenCategory,
+      imageUrl: p.url,
+      hidden: false
+    }));
+
+    const updatedTops = [...fabricsTop, ...importedFabrics];
+    setFabricsTop(updatedTops);
+    const success = await saveDatabase({ fabricsTop: updatedTops });
+    if (success) {
+      setAdminSuccess(`Successfully bulk-imported ${importedFabrics.length} fabric prints into "${chosenCategory}"!`);
+      setShowFabricAdvancedImport(false);
+      setFabricBulkPreview(null);
+      setFabricBulkImportTag('');
+    }
   };
 
   // Trigger RTS Modal
@@ -990,15 +1058,108 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                         className="w-full pl-9 pr-4 py-2 text-xs border border-zinc-250 bg-white rounded-xl focus:outline-none focus:bg-zinc-50 font-sans"
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openFabricModal(null)}
-                      className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>Add Fabric Print</span>
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowFabricAdvancedImport(!showFabricAdvancedImport)}
+                        className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-600 font-extrabold text-[11px] uppercase tracking-wider px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+                      >
+                        🎨 Bulk Fabric Import
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openFabricModal(null)}
+                        className="bg-zinc-900 hover:bg-zinc-850 text-white font-extrabold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>Add Fabric Print</span>
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Collapsible fabric bulk import section */}
+                  {showFabricAdvancedImport && (
+                    <div className="bg-zinc-100 p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-inner text-left max-w-lg animate-fadeIn">
+                      <h4 className="text-[11px] font-black uppercase text-zinc-800 tracking-wider">🎨 Bulk Create Fabrics from Lookbook Photos</h4>
+                      <p className="text-[10px] text-zinc-500 leading-normal">
+                        Type in a search keyword matching files in your R2 photo lookbook, preview the matches, choose a category, then confirm to batch-create fabric prints.
+                      </p>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Filename keyword (e.g., flowers)"
+                          value={fabricBulkImportTag}
+                          onChange={(e) => { setFabricBulkImportTag(e.target.value); setFabricBulkPreview(null); }}
+                          className="flex-1 p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                        />
+                        <button
+                          type="button"
+                          disabled={isFabricBulkImporting}
+                          onClick={handlePreviewFabricBulkImport}
+                          className="bg-[#7D8F7D] text-white px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap"
+                        >
+                          {isFabricBulkImporting ? 'Searching...' : '🔍 Preview Matches'}
+                        </button>
+                      </div>
+
+                      {fabricBulkPreview && fabricBulkPreview.length > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-zinc-200">
+                          <p className="text-[10px] font-black text-zinc-700 uppercase tracking-wider">
+                            Found {fabricBulkPreview.length} matching photo{fabricBulkPreview.length !== 1 ? 's' : ''} — review before importing:
+                          </p>
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1">
+                            {fabricBulkPreview.map((p: any, i: number) => (
+                              <div key={i} className="space-y-1">
+                                <div className="aspect-square rounded-lg overflow-hidden bg-white border border-zinc-200">
+                                  <img src={p.url} alt={p.filename} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                </div>
+                                <p className="text-[7.5px] text-zinc-500 truncate" title={p.filename}>{p.filename.split('.')[0].replace(/[-_]+/g, ' ')}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-zinc-450 font-black uppercase">Category to assign</label>
+                              <select
+                                value={fabricBulkCategory || categories[0] || ''}
+                                onChange={(e) => setFabricBulkCategory(e.target.value)}
+                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                              >
+                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-zinc-450 font-black uppercase">Material</label>
+                              <input
+                                type="text"
+                                value={fabricBulkMaterial}
+                                onChange={(e) => setFabricBulkMaterial(e.target.value)}
+                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => { setFabricBulkPreview(null); }}
+                              className="text-[10px] font-bold text-zinc-500 px-3 py-2 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleConfirmFabricBulkImport}
+                              className="bg-zinc-900 hover:bg-zinc-850 text-white px-4 py-2 rounded-lg text-xs font-bold"
+                            >
+                              ✅ Confirm & Import {fabricBulkPreview.length} Fabric{fabricBulkPreview.length !== 1 ? 's' : ''}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Visual collapsible sections by categories */}
                   <div className="space-y-4">
@@ -1093,9 +1254,21 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                                       </div>
 
                                       {/* Mobile-only visible action buttons below */}
-                                      <div className="md:hidden flex justify-end gap-1 p-1 border-t border-zinc-100 bg-zinc-50">
-                                        <button type="button" onClick={() => openFabricModal(fab)} className="text-[8.5px] font-bold text-zinc-700 hover:underline px-1.5 py-0.5">Edit</button>
-                                        <button type="button" onClick={() => handleDeleteFabric(fab)} className="text-[8.5px] font-bold text-rose-600 hover:underline px-1.5 py-0.5">Del</button>
+                                      <div className="md:hidden grid grid-cols-2 border-t border-zinc-100">
+                                        <button
+                                          type="button"
+                                          onClick={() => openFabricModal(fab)}
+                                          className="flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-zinc-700 bg-zinc-50 active:bg-zinc-200 border-r border-zinc-100 cursor-pointer"
+                                        >
+                                          <Edit className="h-3.5 w-3.5" /> Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteFabric(fab)}
+                                          className="flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-rose-600 bg-rose-50 active:bg-rose-200 cursor-pointer"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                                        </button>
                                       </div>
                                     </div>
                                   ))}
@@ -1149,14 +1322,14 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                     <div className="bg-zinc-100 p-4 rounded-2xl border border-zinc-200 space-y-3 shadow-inner text-left max-w-lg animate-fadeIn">
                       <h4 className="text-[11px] font-black uppercase text-zinc-800 tracking-wider">📦 Bulk Create from Lookbook Photos</h4>
                       <p className="text-[10px] text-zinc-500 leading-normal">
-                        Type in a search keyword (like "kimmi", "pads", or "flowers") matching files in your R2 photo lookbook to automatically batch-import them as ready-made stock pads.
+                        Type in a search keyword (like "kimmi", "pads", or "flowers") matching files in your R2 photo lookbook, preview the matches, then choose size/absorbency/price before confirming.
                       </p>
                       <div className="flex gap-2">
                         <input
                           type="text"
                           placeholder="Filename keyword (e.g., flowers)"
                           value={rtsBulkImportTag}
-                          onChange={(e) => setRtsBulkImportTag(e.target.value)}
+                          onChange={(e) => { setRtsBulkImportTag(e.target.value); setRtsBulkPreview(null); }}
                           className="flex-1 p-2 text-xs border border-zinc-250 rounded-lg bg-white"
                         />
                         <button
@@ -1175,21 +1348,100 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                                 const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(rtsBulkImportTag.toLowerCase().trim()));
                                 if (filtered.length === 0) {
                                   alert(`No photos found matching folder keyword "${rtsBulkImportTag}".`);
-                                  return;
+                                  setRtsBulkPreview(null);
+                                } else {
+                                  setRtsBulkPreview(filtered);
                                 }
-                                
-                                const importedPads = filtered.map((p: any, index: number) => ({
+                              }
+                            } catch (err: any) {
+                              setAdminError('Preview failed: ' + err.message);
+                            } finally {
+                              setIsRtsBulkImporting(false);
+                            }
+                          }}
+                          className="bg-[#7D8F7D] text-white px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap"
+                        >
+                          {isRtsBulkImporting ? 'Searching...' : '🔍 Preview Matches'}
+                        </button>
+                      </div>
+
+                      {rtsBulkPreview && rtsBulkPreview.length > 0 && (
+                        <div className="space-y-3 pt-2 border-t border-zinc-200">
+                          <p className="text-[10px] font-black text-zinc-700 uppercase tracking-wider">
+                            Found {rtsBulkPreview.length} matching photo{rtsBulkPreview.length !== 1 ? 's' : ''} — review before importing:
+                          </p>
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1">
+                            {rtsBulkPreview.map((p: any, i: number) => (
+                              <div key={i} className="space-y-1">
+                                <div className="aspect-square rounded-lg overflow-hidden bg-white border border-zinc-200">
+                                  <img src={p.url} alt={p.filename} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                </div>
+                                <p className="text-[7.5px] text-zinc-500 truncate" title={p.filename}>{p.filename.split('.')[0].replace(/[-_]+/g, ' ')}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-zinc-450 font-black uppercase">Absorbency to assign</label>
+                              <select
+                                value={rtsBulkAbsorbency}
+                                onChange={(e) => setRtsBulkAbsorbency(e.target.value)}
+                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                              >
+                                <option value="Liner">Liner</option>
+                                <option value="Light">Light</option>
+                                <option value="Moderate dry">Moderate</option>
+                                <option value="Heavy dry">Heavy</option>
+                                <option value="Extra Long">Extra Long</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] text-zinc-450 font-black uppercase">Size to assign</label>
+                              <select
+                                value={rtsBulkSize}
+                                onChange={(e) => setRtsBulkSize(e.target.value)}
+                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                              >
+                                {sizeOptions.map(opt => (
+                                  <option key={opt.id} value={opt.displayLabel || opt.name}>{opt.displayLabel || opt.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="space-y-1 col-span-2">
+                              <label className="text-[9px] text-zinc-450 font-black uppercase">Price (S$) to assign</label>
+                              <input
+                                type="number"
+                                value={rtsBulkPrice}
+                                onChange={(e) => setRtsBulkPrice(e.target.value)}
+                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => { setRtsBulkPreview(null); }}
+                              className="text-[10px] font-bold text-zinc-500 px-3 py-2 hover:underline"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const importedPads = rtsBulkPreview.map((p: any, index: number) => ({
                                   id: 'rts-' + Date.now() + '-' + index,
-                                  name: RTS_NAME_MAP['Moderate dry'] || 'Moderate Day Pad',
+                                  name: RTS_NAME_MAP[rtsBulkAbsorbency] || rtsBulkAbsorbency,
                                   description: 'Pre-crafted limited release pack ready for immediate dispatch',
-                                  price: 15.00,
+                                  price: parseFloat(rtsBulkPrice) || 15.00,
                                   quantityLeft: 1,
-                                  size: 'Regular Day (8")',
-                                  sizeLabel: 'Regular Day (8")',
+                                  size: rtsBulkSize,
+                                  sizeLabel: rtsBulkSize,
                                   print: p.filename.split('.')[0].replace(/[-_]+/g, ' '),
                                   printLabel: p.filename.split('.')[0].replace(/[-_]+/g, ' '),
-                                  absorbency: 'Moderate dry',
-                                  absorbencyLabel: 'Moderate dry',
+                                  absorbency: rtsBulkAbsorbency,
+                                  absorbencyLabel: rtsBulkAbsorbency,
                                   imageUrl: p.url,
                                   adminNotes: 'Bulk imported from lookbook folder',
                                   shape: '',
@@ -1200,21 +1452,18 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                                 setReadyMadeStocks(newList);
                                 const success = await saveDatabase({ readyMadeStocks: newList });
                                 if (success) {
-                                  setAdminSuccess(`Successfully bulk-imported ${importedPads.length} ready-made pads!`);
+                                  setAdminSuccess(`Successfully bulk-imported ${importedPads.length} ready-made pads into "${rtsBulkAbsorbency}"!`);
                                   setShowAdvancedImport(false);
+                                  setRtsBulkPreview(null);
                                 }
-                              }
-                            } catch (err: any) {
-                              setAdminError('Bulk import failed: ' + err.message);
-                            } finally {
-                              setIsRtsBulkImporting(false);
-                            }
-                          }}
-                          className="bg-[#7D8F7D] text-white px-4 py-2 rounded-lg text-xs font-bold"
-                        >
-                          {isRtsBulkImporting ? 'Importing...' : '🚀 Execute Import'}
-                        </button>
-                      </div>
+                              }}
+                              className="bg-zinc-900 hover:bg-zinc-850 text-white px-4 py-2 rounded-lg text-xs font-bold"
+                            >
+                              ✅ Confirm & Import {rtsBulkPreview.length} Pad{rtsBulkPreview.length !== 1 ? 's' : ''}
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1320,9 +1569,21 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                                       </div>
 
                                       {/* Mobile overlay controls */}
-                                      <div className="md:hidden flex justify-end gap-1 p-1 border-t border-zinc-100 bg-zinc-50">
-                                        <button type="button" onClick={() => openRtsModal(item)} className="text-[8.5px] font-bold text-zinc-700 hover:underline px-1.5 py-0.5">Edit</button>
-                                        <button type="button" onClick={() => handleDeleteRts(item)} className="text-[8.5px] font-bold text-rose-600 hover:underline px-1.5 py-0.5">Del</button>
+                                      <div className="md:hidden grid grid-cols-2 border-t border-zinc-100">
+                                        <button
+                                          type="button"
+                                          onClick={() => openRtsModal(item)}
+                                          className="flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-zinc-700 bg-zinc-50 active:bg-zinc-200 border-r border-zinc-100 cursor-pointer"
+                                        >
+                                          <Edit className="h-3.5 w-3.5" /> Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteRts(item)}
+                                          className="flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-bold text-rose-600 bg-rose-50 active:bg-rose-200 cursor-pointer"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                                        </button>
                                       </div>
                                     </div>
                                   ))}
