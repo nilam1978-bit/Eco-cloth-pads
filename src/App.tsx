@@ -38,7 +38,8 @@ import {
   Mail,
   Instagram,
   Facebook,
-  Scissors
+  Scissors,
+  Menu
 } from 'lucide-react';
 import { 
   FABRICS_TOP, 
@@ -56,6 +57,12 @@ import { PadShape } from './components/PadShapes';
 import customizerDbFallback from './customizer-db.json';
 import { AdminUnified } from './components/AdminUnified';
 import { SizingGuideView } from './components/SizingGuideView';
+import { BenefitsPage } from './components/BenefitsPage';
+import { AboutPage } from './components/AboutPage';
+import { WhyClothPadsPage } from './components/WhyClothPadsPage';
+import { ContactPage } from './components/ContactPage';
+import { BlogPage } from './components/BlogPage';
+import { FaqPage } from './components/FaqPage';
 import { UnifiedCard } from './components/UnifiedCard';
 
 // Category map to R2 tag folders / prefixes (case-insensitive keys)
@@ -2360,6 +2367,7 @@ export default function App() {
   };
   const [isRtsExpanded, setIsRtsExpanded] = useState<boolean>(false);
   const [isRtsPage, setIsRtsPage] = useState<boolean>(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
   const [showScrollToTop, setShowScrollToTop] = useState<boolean>(false);
   const getScrollToTopBottomClass = () => {
     const hasCart = cart.length > 0 && !isCartFloatingExpanded && !shouldShowCheckout;
@@ -4291,10 +4299,10 @@ export default function App() {
         </div>
 
         {/* LOGO & BRAND PAGE HEADER */}
-        {currentPath !== '/sizing-guide' && !isRtsPage && (
+        {currentPath !== '/sizing-guide' && currentPath !== '/benefits' && currentPath !== '/about' && currentPath !== '/why-cloth-pads' && currentPath !== '/contact' && currentPath !== '/blog' && currentPath !== '/faq' && !isRtsPage && (
           <header className="relative bg-[#FDF7FB]/85 backdrop-blur-md border-b border-brand-taupe/15 py-4 px-4 sm:px-8 shrink-0 z-35 shadow-3xs">
-            <div className="max-w-7xl mx-auto flex justify-between items-center w-full">
-              <div className="flex items-center gap-2.5">
+            <div className="max-w-7xl mx-auto flex justify-between items-center w-full gap-4">
+              <div className="flex items-center gap-2.5 shrink-0">
                 <button 
                   type="button"
                   onClick={handleFlowerTap}
@@ -4303,32 +4311,130 @@ export default function App() {
                 >
                   <ShopLogo url={shopLogoUrl} />
                 </button>
-                <div className="flex flex-col justify-center">
+                <div className="hidden xs:flex flex-col justify-center">
                   <h1 className="font-nathan text-[18px] xs:text-[21px] sm:text-2xl md:text-3.5xl text-[#922B50] leading-none tracking-wide select-none whitespace-nowrap">
                     WonderPads <span className="text-[0.82em] sm:text-[1em]">Reusables</span>
                   </h1>
                 </div>
               </div>
-              
-              {/* Redundant Home tab removed as sub-pages feature their own elegant (X) close button to return back. */}
 
-              {/* Quick-access header nav — reach Ready Made For You from anywhere without scrolling back to the hero */}
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedOptionTab(null);
-                  setIsRtsPage(true);
-                  if (activeRtsCategoryTab === null || activeRtsCategoryTab === 'All') {
-                    setActiveRtsCategoryTab('All');
-                  }
-                  navigateTo('/');
-                }}
-                className="hidden sm:inline-flex items-center gap-1.5 bg-white/85 hover:bg-white text-brand-charcoal border border-zinc-250 hover:border-zinc-300 font-serif font-extrabold text-xs sm:text-sm py-2 px-4 sm:px-5 rounded-full shadow-3xs hover:shadow-2xs transition-all duration-300 hover:scale-[1.01] active:scale-99 cursor-pointer select-none whitespace-nowrap"
-              >
-                <span>Ready Made For You</span>
-              </button>
+              {/* Main site navigation — matches the new marketing pages (About/Why Cloth Pads/Blog/FAQ/Contact) */}
+              <nav className="hidden lg:flex items-center gap-5 xl:gap-6 overflow-x-auto scrollbar-none font-sans text-[13px] font-bold text-brand-charcoal/80 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOptionTab(null);
+                    setIsRtsPage(false);
+                    setLandingSubView('main');
+                    navigateTo('/');
+                  }}
+                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
+                >
+                  Home
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOptionTab(null);
+                    setIsRtsPage(false);
+                    setLandingSubView('make_your_pad');
+                    navigateTo('/');
+                  }}
+                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
+                >
+                  Custom Studio
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedOptionTab(null);
+                    setIsRtsPage(true);
+                    if (activeRtsCategoryTab === null || activeRtsCategoryTab === 'All') {
+                      setActiveRtsCategoryTab('All');
+                    }
+                    navigateTo('/');
+                  }}
+                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
+                >
+                  Ready Made
+                </button>
+                <button type="button" onClick={() => navigateTo('/about')} className="hover:text-[#8C2346] transition-colors cursor-pointer">
+                  About
+                </button>
+                <button type="button" onClick={() => navigateTo('/why-cloth-pads')} className="hover:text-[#8C2346] transition-colors cursor-pointer">
+                  Why Cloth Pads
+                </button>
+                <button type="button" onClick={() => navigateTo('/blog')} className="hover:text-[#8C2346] transition-colors cursor-pointer">
+                  Blog
+                </button>
+                <button type="button" onClick={() => navigateTo('/faq')} className="hover:text-[#8C2346] transition-colors cursor-pointer">
+                  FAQ
+                </button>
+                <button type="button" onClick={() => navigateTo('/contact')} className="hover:text-[#8C2346] transition-colors cursor-pointer">
+                  Contact
+                </button>
+              </nav>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Hamburger menu — mobile/tablet only, mirrors the desktop nav row above */}
+                <button
+                  type="button"
+                  onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+                  className="lg:hidden relative h-10 w-10 shrink-0 bg-white/85 hover:bg-white border border-zinc-250 hover:border-zinc-300 rounded-full flex items-center justify-center shadow-3xs hover:shadow-2xs transition-all duration-300 cursor-pointer"
+                  title="Menu"
+                >
+                  {isMobileNavOpen ? <X className="h-4.5 w-4.5 text-brand-charcoal" /> : <Menu className="h-4.5 w-4.5 text-brand-charcoal" />}
+                </button>
+
+                {/* Cart icon — opens the existing floating basket drawer */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (cart.length > 0) {
+                      setIsCartFloatingExpanded(true);
+                    }
+                  }}
+                  className="relative h-10 w-10 sm:h-11 sm:w-11 shrink-0 bg-white/85 hover:bg-white border border-zinc-250 hover:border-zinc-300 rounded-full flex items-center justify-center shadow-3xs hover:shadow-2xs transition-all duration-300 cursor-pointer"
+                  title="View Basket"
+                >
+                  <ShoppingBag className="h-4.5 w-4.5 text-brand-charcoal" />
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-brand-moss text-white text-[9px] font-black h-4.5 w-4.5 rounded-full flex items-center justify-center shadow-xs">
+                      {totalCartCount}
+                    </span>
+                  )}
+                </button>
+              </div>
 
             </div>
+
+            {/* Mobile/tablet slide-down nav panel — same links as the desktop nav row, tap to navigate and auto-close */}
+            {isMobileNavOpen && (
+              <nav className="lg:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-brand-taupe/15 flex flex-col gap-0.5 font-sans text-sm font-bold text-brand-charcoal/85 animate-fadeIn">
+                {[
+                  { label: 'Home', onClick: () => { setSelectedOptionTab(null); setIsRtsPage(false); setLandingSubView('main'); navigateTo('/'); } },
+                  { label: 'Custom Studio', onClick: () => { setSelectedOptionTab(null); setIsRtsPage(false); setLandingSubView('make_your_pad'); navigateTo('/'); } },
+                  { label: 'Ready Made', onClick: () => { setSelectedOptionTab(null); setIsRtsPage(true); if (activeRtsCategoryTab === null || activeRtsCategoryTab === 'All') { setActiveRtsCategoryTab('All'); } navigateTo('/'); } },
+                  { label: 'About', onClick: () => navigateTo('/about') },
+                  { label: 'Why Cloth Pads', onClick: () => navigateTo('/why-cloth-pads') },
+                  { label: 'Blog', onClick: () => navigateTo('/blog') },
+                  { label: 'FAQ', onClick: () => navigateTo('/faq') },
+                  { label: 'Contact', onClick: () => navigateTo('/contact') },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      item.onClick();
+                      setIsMobileNavOpen(false);
+                    }}
+                    className="text-left py-2.5 px-1 hover:text-[#8C2346] hover:bg-white/50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
+            )}
           </header>
         )}
 
@@ -4348,6 +4454,27 @@ export default function App() {
                 }
               }}
             />
+          ) : currentPath === '/benefits' ? (
+            <BenefitsPage onNavigate={navigateTo} />
+          ) : currentPath === '/about' ? (
+            <AboutPage onNavigate={navigateTo} />
+          ) : currentPath === '/why-cloth-pads' ? (
+            <WhyClothPadsPage
+              onNavigate={navigateTo}
+              onStartCustomizer={() => {
+                setSelectedOptionTab('bespoke');
+                navigateTo('/');
+                if (containerRef.current) {
+                  containerRef.current.scrollTop = 0;
+                }
+              }}
+            />
+          ) : currentPath === '/contact' ? (
+            <ContactPage onNavigate={navigateTo} merchantPhone={merchantPhone} merchantEmail={merchantEmail} />
+          ) : currentPath === '/blog' ? (
+            <BlogPage onNavigate={navigateTo} blogPosts={blogPosts} />
+          ) : currentPath === '/faq' ? (
+            <FaqPage onNavigate={navigateTo} washingFaq={washingFaq} />
           ) : (
             <>
               {/* DEDICATED SELECTION VIEW NAVIGATION HEADER               */}
@@ -4724,6 +4851,9 @@ export default function App() {
                         <h3 className="font-serif font-black text-[#5C1A32] text-xl sm:text-2xl mt-0.5">
                           How It Works
                         </h3>
+                        <p className="text-[10px] sm:text-[11px] text-[#A24467] font-semibold italic mt-2">
+                          Tip: If you're new to cloth, start with the size closest to your usual disposable pad.
+                        </p>
                       </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 font-sans text-left">
@@ -4734,7 +4864,6 @@ export default function App() {
                               1
                             </div>
                             <div className="space-y-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[#A24467] font-sans block">STEP 1</span>
                               <h4 className="font-serif font-black text-[#5C1A32] text-base leading-snug">
                                 Customise or Shop RTS
                               </h4>
@@ -4759,9 +4888,6 @@ export default function App() {
                                   <p>All other pads come with a standard Soft-shell Fleece backing (white for Light pads, black for Regular, Heavy &amp; Extra Long).</p>
                                 </div>
                               )}
-                              <p className="text-[10px] sm:text-[11px] text-[#A24467] font-semibold italic mt-2">
-                                Tip: If you're new to cloth, start with the size closest to your usual disposable pad.
-                              </p>
                             </div>
                           </div>
                         </div>
@@ -4773,7 +4899,6 @@ export default function App() {
                               2
                             </div>
                             <div className="space-y-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[#A24467] font-sans block">STEP 2</span>
                               <h4 className="font-serif font-black text-[#5C1A32] text-base leading-snug">
                                 Build Your Collection
                               </h4>
@@ -4791,7 +4916,6 @@ export default function App() {
                               3
                             </div>
                             <div className="space-y-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[#A24467] font-sans block">STEP 3</span>
                               <h4 className="font-serif font-black text-[#5C1A32] text-base leading-snug">
                                 Checkout Fast
                               </h4>
@@ -4809,7 +4933,6 @@ export default function App() {
                               4
                             </div>
                             <div className="space-y-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-[#A24467] font-sans block">STEP 4</span>
                               <h4 className="font-serif font-black text-[#5C1A32] text-base leading-snug">
                                 Send to Nilam
                               </h4>
@@ -7540,9 +7663,68 @@ export default function App() {
           )}
 
           {/* BEAUTIFUL DESIGNER BRAND FOOTER & SOCIAL LINKS */}
-          <footer className="mt-8 pt-8 pb-10 px-6 bg-brand-pink-light/60 border-t border-brand-pink/35 text-center space-y-4 rounded-t-[32px] -mx-4 sm:-mx-8">
-            {/* Centered Green WhatsApp Tab above the footer text */}
-            <div className="flex justify-center mb-1 animate-fadeIn">
+          <footer className="mt-8 pt-10 pb-8 px-6 bg-brand-pink-light/60 border-t border-brand-pink/35 rounded-t-[32px] -mx-4 sm:-mx-8">
+            <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 text-left">
+              {/* Brand blurb column */}
+              <div className="space-y-2.5">
+                <h4 className="font-serif text-base font-black tracking-wide text-brand-moss">
+                  WonderPads
+                </h4>
+                <p className="text-[11px] text-zinc-500 font-medium leading-relaxed max-w-[220px]">
+                  Handcrafted reusable cloth pads, made with love in Singapore. Each pad is individually sewn to order.
+                </p>
+              </div>
+
+              {/* Learn column */}
+              <div className="space-y-2.5">
+                <h5 className="font-serif text-xs font-black uppercase tracking-widest text-brand-charcoal/70">Learn</h5>
+                <div className="flex flex-col gap-1.5 text-[12px] font-bold text-brand-moss/85 font-sans">
+                  <button type="button" onClick={() => navigateTo('/why-cloth-pads')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Why Cloth Pads
+                  </button>
+                  <button type="button" onClick={() => navigateTo('/benefits')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Benefits
+                  </button>
+                  <button type="button" onClick={() => setShowCareModal(true)} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Care Guide
+                  </button>
+                  <button type="button" onClick={() => navigateTo('/blog')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Blog
+                  </button>
+                </div>
+              </div>
+
+              {/* Shop column */}
+              <div className="space-y-2.5">
+                <h5 className="font-serif text-xs font-black uppercase tracking-widest text-brand-charcoal/70">Shop</h5>
+                <div className="flex flex-col gap-1.5 text-[12px] font-bold text-brand-moss/85 font-sans">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOptionTab(null);
+                      setIsRtsPage(false);
+                      setLandingSubView('make_your_pad');
+                      navigateTo('/');
+                    }}
+                    className="hover:text-[#8C2346] transition-colors cursor-pointer text-left"
+                  >
+                    Custom Studio
+                  </button>
+                  <button type="button" onClick={() => navigateTo('/sizing-guide')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Sizing &amp; Pricing
+                  </button>
+                  <button type="button" onClick={() => navigateTo('/faq')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    FAQ
+                  </button>
+                  <button type="button" onClick={() => navigateTo('/contact')} className="hover:text-[#8C2346] transition-colors cursor-pointer text-left">
+                    Contact
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="max-w-5xl mx-auto border-t border-brand-pink/30 mt-8 pt-6 flex flex-col items-center gap-4 text-center">
+              {/* Centered Green WhatsApp Tab */}
               <a
                 href={`https://wa.me/${(() => {
                   const destPhone = merchantPhone.trim() || '6583397556';
@@ -7562,84 +7744,43 @@ export default function App() {
                 <MessageCircle className="h-4 w-4 text-white shrink-0 fill-white/10" />
                 <span>Chat on WhatsApp</span>
               </a>
-            </div>
 
-            <div className="flex flex-col items-center gap-1.5">
-              <h4 className="font-serif text-[13px] font-black tracking-[0.25em] text-brand-moss uppercase">
-                WonderPads Reusables
-              </h4>
-              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
-                Handcrafted with care • Sustainable personal wellness
-              </p>
-              
-              {/* Footer Quick Links Navigation Row */}
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-2 text-[11px] font-black uppercase tracking-wider text-brand-moss/80 font-sans">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setSelectedOptionTab(null);
-                    setIsRtsPage(false);
-                    setLandingSubView('main');
-                    navigateTo('/');
-                  }}
-                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
+              {/* Social Links Badge Buttons */}
+              <div className="flex items-center justify-center gap-3">
+                <a
+                  href="https://instagram.com/ecoclothpad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-rose-600 hover:border-rose-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Follow Wonder Pads on Instagram"
                 >
-                  Home
-                </button>
-                <span className="text-zinc-300 select-none">•</span>
-                <button 
-                  type="button"
-                  onClick={() => navigateTo('/sizing-guide')}
-                  className="hover:text-[#8C2346] transition-colors font-black underline decoration-indigo-300 hover:decoration-[#8C2346] cursor-pointer"
+                  <Instagram className="h-4.5 w-4.5" />
+                </a>
+                <a
+                  href="https://facebook.com/ecoclothpad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-blue-600 hover:border-blue-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Follow Wonder Pads on Facebook"
                 >
-                  Sizing &amp; Pricing
-                </button>
-                <span className="text-zinc-300 select-none">•</span>
-                <button 
-                  type="button"
-                  onClick={() => setShowCareModal(true)}
-                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
+                  <Facebook className="h-4.5 w-4.5" />
+                </a>
+                <a
+                  href="https://tiktok.com/@ecoclothpad"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-black hover:border-zinc-400 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Follow Wonder Pads on TikTok"
                 >
-                  Care Guide
-                </button>
+                  <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.47-.77-.56-1.44-1.27-1.93-2.11v7.28c0 1.38-.35 2.78-1.13 3.91-.78 1.13-1.93 1.95-3.23 2.33-1.3.38-2.73.33-3.99-.14-1.26-.47-2.35-1.39-3.04-2.55s-.96-2.58-.78-3.93c.18-1.35.84-2.61 1.87-3.5 1.03-.89 2.4-1.37 3.76-1.35.34.01.68.05 1.02.12v4.03c-.34-.1-.71-.14-1.07-.13-.76-.02-1.53.25-2.11.75-.58.5-.94 1.21-1 1.97-.06.76.18 1.54.67 2.13s1.21.94 1.97 1c.76.06 1.54-.18 2.13-.67.59-.49.95-1.21 1.01-1.97.04-.37.04-4.88.04-8.54V0C12.53.01 12.53.01 12.53.02z" />
+                  </svg>
+                </a>
               </div>
-            </div>
 
-            {/* Social Links Badge Buttons */}
-            <div className="flex items-center justify-center gap-3">
-              <a
-                href="https://instagram.com/ecoclothpad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-rose-600 hover:border-rose-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
-                title="Follow Wonder Pads on Instagram"
-              >
-                <Instagram className="h-4.5 w-4.5" />
-              </a>
-              <a
-                href="https://facebook.com/ecoclothpad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-blue-600 hover:border-blue-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
-                title="Follow Wonder Pads on Facebook"
-              >
-                <Facebook className="h-4.5 w-4.5" />
-              </a>
-              <a
-                href="https://tiktok.com/@ecoclothpad"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-black hover:border-zinc-400 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
-                title="Follow Wonder Pads on TikTok"
-              >
-                <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.47-.77-.56-1.44-1.27-1.93-2.11v7.28c0 1.38-.35 2.78-1.13 3.91-.78 1.13-1.93 1.95-3.23 2.33-1.3.38-2.73.33-3.99-.14-1.26-.47-2.35-1.39-3.04-2.55s-.96-2.58-.78-3.93c.18-1.35.84-2.61 1.87-3.5 1.03-.89 2.4-1.37 3.76-1.35.34.01.68.05 1.02.12v4.03c-.34-.1-.71-.14-1.07-.13-.76-.02-1.53.25-2.11.75-.58.5-.94 1.21-1 1.97-.06.76.18 1.54.67 2.13s1.21.94 1.97 1c.76.06 1.54-.18 2.13-.67.59-.49.95-1.21 1.01-1.97.04-.37.04-4.88.04-8.54V0C12.53.01 12.53.01 12.53.02z" />
-                </svg>
-              </a>
-            </div>
-
-            <div className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest leading-none">
-              © {new Date().getFullYear()} WonderPads. All rights reserved.
+              <div className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest leading-none">
+                © {new Date().getFullYear()} WonderPads. All rights reserved.
+              </div>
             </div>
           </footer>
 
