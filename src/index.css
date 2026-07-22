@@ -21,6 +21,7 @@
 /* Base style enhancements to ensure beautiful render and background */
 html, body, #root {
   height: 100%;
+  height: 100dvh; /* Dynamic viewport height: adjusts when mobile browser chrome (address bar) shows/hides, preventing content from being clipped behind it. Falls back to 100% on older browsers that don't support dvh. */
   margin: 0;
   padding: 0;
   overflow: hidden;
