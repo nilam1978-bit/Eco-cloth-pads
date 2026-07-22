@@ -2952,6 +2952,15 @@ export default function App() {
 
   // Reset scroll to top when toggling between checkout page, customize screens, or returning to design studio
   useEffect(() => {
+    // While inside an active bespoke step flow, the step-header scroll effect above
+    // already positions the page correctly for the current step. Forcing a scroll-to-top
+    // here at the same time causes the page to visibly snap/jump as the two fight each other.
+    // Only force-scroll-to-top for transitions this effect actually owns: entering/leaving
+    // checkout, or leaving the bespoke flow entirely.
+    if (selectedOptionTab === 'bespoke' && customFlow) {
+      return;
+    }
+
     const forceScrollToTop = () => {
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
@@ -4302,6 +4311,23 @@ export default function App() {
               </div>
               
               {/* Redundant Home tab removed as sub-pages feature their own elegant (X) close button to return back. */}
+
+              {/* Quick-access header nav — reach Ready Made For You from anywhere without scrolling back to the hero */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedOptionTab(null);
+                  setIsRtsPage(true);
+                  if (activeRtsCategoryTab === null || activeRtsCategoryTab === 'All') {
+                    setActiveRtsCategoryTab('All');
+                  }
+                  navigateTo('/');
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 bg-white/85 hover:bg-white text-brand-charcoal border border-zinc-250 hover:border-zinc-300 font-serif font-extrabold text-xs sm:text-sm py-2 px-4 sm:px-5 rounded-full shadow-3xs hover:shadow-2xs transition-all duration-300 hover:scale-[1.01] active:scale-99 cursor-pointer select-none whitespace-nowrap"
+              >
+                <span>Ready Made For You</span>
+              </button>
+
             </div>
           </header>
         )}
@@ -5517,19 +5543,6 @@ export default function App() {
 
                       {/* Flow-aware Bottom Navigation for Step 1 Fabrics */}
                       <div className="pt-8 pb-4 text-center max-w-xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn border-t border-zinc-100/60 mt-8 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (containerRef.current) {
-                              containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                            }
-                          }}
-                          className="w-full sm:w-auto bg-white hover:bg-zinc-50 text-zinc-500 text-xs font-black py-3.5 px-6 rounded-full uppercase tracking-widest shadow-3xs border border-zinc-200 transition-all duration-200 hover:scale-102 active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                          <span>⬆</span>
-                          <span>Back to Top</span>
-                        </button>
-
                         <button
                           type="button"
                           onClick={() => {
@@ -7063,21 +7076,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Back to Top / Homepage Tab for Size-First Flow */}
+                {/* Bottom Navigation for Size-First Flow */}
                 <div className="pt-8 pb-4 text-center max-w-xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn border-t border-zinc-100/60 mt-8 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (containerRef.current) {
-                        containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                      }
-                    }}
-                    className="w-full sm:w-auto bg-white hover:bg-zinc-50 text-zinc-500 text-xs font-black py-3.5 px-6 rounded-full uppercase tracking-widest shadow-3xs border border-zinc-200 transition-all duration-200 hover:scale-102 active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <span>⬆</span>
-                    <span>Back to Top</span>
-                  </button>
-
                   <button
                     type="button"
                     onClick={() => {
@@ -7409,20 +7409,8 @@ export default function App() {
                       </p>
                     </div>
 
-                    {/* Back to Top / Design Studio navigation at the bottom of Checkout */}
+                    {/* Back to Design Studio navigation at the bottom of Checkout */}
                     <div className="pt-6 border-t border-zinc-150/50 flex justify-center gap-3 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (containerRef.current) {
-                            containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                          }
-                        }}
-                        className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-zinc-500 hover:text-[#922B50] transition-colors cursor-pointer bg-white px-5 py-2.5 rounded-full border border-zinc-200 shadow-3xs hover:scale-102 active:scale-98 transition-all"
-                      >
-                        <span>⬆</span>
-                        <span>Back to Top</span>
-                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -7431,6 +7419,7 @@ export default function App() {
                           if (containerRef.current) {
                             containerRef.current.scrollTop = 0;
                           }
+                          window.scrollTo(0, 0);
                         }}
                         className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-brand-taupe hover:text-[#922B50] transition-colors cursor-pointer bg-brand-cream/60 hover:bg-brand-cream/90 px-5 py-2.5 rounded-full border border-zinc-200/60 shadow-3xs hover:scale-102 active:scale-98 transition-all"
                       >
@@ -7528,21 +7517,13 @@ export default function App() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (containerRef.current) {
-                          containerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-                        }
-                      }}
-                      className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-zinc-500 hover:text-[#922B50] transition-colors cursor-pointer bg-white px-5 py-2.5 rounded-full border border-zinc-200 shadow-3xs hover:scale-102 active:scale-98 transition-all"
-                    >
-                      <span>⬆</span>
-                      <span>Back to Top</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
                         setInquiryResult(null);
                         setIsCheckoutPage(false);
                         setSelectedOptionTab(null);
+                        if (containerRef.current) {
+                          containerRef.current.scrollTop = 0;
+                        }
+                        window.scrollTo(0, 0);
                       }}
                       className="bg-brand-moss text-[#FFF5F7] py-2.5 px-6 rounded-full text-xs font-black uppercase tracking-widest shadow-md hover:bg-brand-moss/90 transition-all duration-200 hover:scale-102 active:scale-98 cursor-pointer"
                     >
@@ -7620,18 +7601,6 @@ export default function App() {
                   className="hover:text-[#8C2346] transition-colors cursor-pointer"
                 >
                   Care Guide
-                </button>
-                <span className="text-zinc-300 select-none">•</span>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setSelectedOptionTab(null);
-                    setIsRtsPage(true);
-                    navigateTo('/');
-                  }}
-                  className="hover:text-[#8C2346] transition-colors cursor-pointer"
-                >
-                  Ready to Ship
                 </button>
               </div>
             </div>
