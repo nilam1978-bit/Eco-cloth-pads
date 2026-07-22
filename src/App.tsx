@@ -1036,7 +1036,7 @@ export default function App() {
         if (data) {
           if (Array.isArray(data.fabricsTop)) setFabricsTop(data.fabricsTop);
           if (Array.isArray(data.fabricsBacking)) setFabricsBacking(data.fabricsBacking);
-          if (Array.isArray(data.sizeOptions)) setSizeOptions(data.sizeOptions);
+          if (Array.isArray(data.sizeOptions) && data.sizeOptions.length > 0) setSizeOptions(data.sizeOptions);
           if (Array.isArray(data.absorbencyOptions)) setAbsorbencyOptions(data.absorbencyOptions);
           if (Array.isArray(data.readyMadeStocks)) setReadyMadeStocks(data.readyMadeStocks);
           if (Array.isArray(data.shapeOptions)) setShapeOptions(data.shapeOptions);
@@ -2434,7 +2434,7 @@ export default function App() {
 
   const selectActiveSizeTab = (sizeId: string) => {
     setActiveBespokeSizeId(sizeId);
-    const szObj = sizeOptions.find(s => s.id === sizeId) || sizeOptions[1];
+    const szObj = sizeOptions.find(s => s.id === sizeId) || sizeOptions[1] || SIZE_OPTIONS[1];
     const localL = selectedLengths[sizeId] || szObj.lengthInches;
     const localAbsName = selectedAbsorbencies[sizeId] || 'Standard core';
     const localBackingName = selectedBackings[sizeId] || (sizeId === 'liner' ? 'Printed Cotton' : sizeId === 'light' ? 'White softshell fleece' : 'Black softshell fleece');
@@ -2572,7 +2572,7 @@ export default function App() {
     const firstPrintObj = fabricsTop.find(f => f.id === firstPrintId) || NONE_FABRIC;
     setDesignerPrint(firstPrintObj);
 
-    const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1];
+    const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1] || SIZE_OPTIONS[1];
     setDesignerSize(szObj);
 
     const localLen = selectedNeedLengths[firstPrintId] || szObj.lengthInches;
@@ -2609,7 +2609,7 @@ export default function App() {
 
   const selectActiveNeedPrintTab = (printId: string) => {
     setActiveNeedPrintId(printId);
-    const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1];
+    const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1] || SIZE_OPTIONS[1];
     const printObj = fabricsTop.find(f => f.id === printId) || NONE_FABRIC;
     setDesignerPrint(printObj);
     setDesignerSize(szObj);
@@ -5882,7 +5882,7 @@ export default function App() {
                       const activeSizeId = selectedBespokeSizes.includes(activeBespokeSizeId)
                         ? activeBespokeSizeId
                         : (selectedBespokeSizes[0] || 'light');
-                      const sz = sizeOptions.find(s => s.id === activeSizeId) || sizeOptions[1];
+                      const sz = sizeOptions.find(s => s.id === activeSizeId) || sizeOptions[1] || SIZE_OPTIONS[1];
 
                       const currentQty = quantities[sz.id] || 0;
                       const localPrint = selectedPrints[sz.id] || designerPrint.name || 'No Pattern Selected';
@@ -6755,7 +6755,7 @@ export default function App() {
                         );
                       }
 
-                      const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1];
+                      const szObj = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1] || SIZE_OPTIONS[1];
                       const printObj = fabricsTop.find(f => f.id === activePrintIdLocal) || NONE_FABRIC;
 
                       const lengthChamber = selectedNeedLengths[activePrintIdLocal] || szObj.lengthInches;
