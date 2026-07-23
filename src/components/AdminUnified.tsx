@@ -199,6 +199,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   const [fabricBulkPreview, setFabricBulkPreview] = useState<any[] | null>(null);
   const [fabricBulkCategory, setFabricBulkCategory] = useState('');
   const [fabricBulkMaterial, setFabricBulkMaterial] = useState('Cotton Woven');
+  const [fabricBulkType, setFabricBulkType] = useState<'top' | 'backing'>('top');
 
   // Toggle collapses
   const toggleCategory = (catName: string) => {
@@ -329,6 +330,35 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   // Fabric Bulk Import — Step 2: confirm and actually create fabric entries
   const handleConfirmFabricBulkImport = async () => {
     if (!fabricBulkPreview || fabricBulkPreview.length === 0) return;
+
+    if (fabricBulkType === 'backing') {
+      const importedBackings = fabricBulkPreview.map((p: any, index: number) => ({
+        id: 'fab-' + Date.now() + '-' + index,
+        name: p.filename.split('.')[0].replace(/[-_]+/g, ' '),
+        type: 'backing',
+        material: fabricBulkMaterial.trim() || 'Cotton Woven',
+        description: 'Wonder Premium Backing',
+        colorHex: '#ffffff',
+        premium: 0,
+        properties: [],
+        stockStatus: 'in_stock',
+        category: 'Backing Fabric',
+        imageUrl: p.url,
+        hidden: false
+      }));
+
+      const updatedBackings = [...fabricsBacking, ...importedBackings];
+      setFabricsBacking(updatedBackings);
+      const success = await saveDatabase({ fabricsBacking: updatedBackings });
+      if (success) {
+        setAdminSuccess(`Successfully bulk-imported ${importedBackings.length} backing fabrics!`);
+        setShowFabricAdvancedImport(false);
+        setFabricBulkPreview(null);
+        setFabricBulkImportTag('');
+      }
+      return;
+    }
+
     const chosenCategory = fabricBulkCategory || categories[0] || 'Flowers';
     const importedFabrics = fabricBulkPreview.map((p: any, index: number) => ({
       id: 'fab-' + Date.now() + '-' + index,
@@ -1084,6 +1114,29 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                       <p className="text-[10px] text-zinc-500 leading-normal">
                         Type in a search keyword matching files in your R2 photo lookbook, preview the matches, choose a category, then confirm to batch-create fabric prints.
                       </p>
+
+                      {/* Top vs Backing toggle */}
+                      <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-lg p-1 w-fit">
+                        <button
+                          type="button"
+                          onClick={() => { setFabricBulkType('top'); setFabricBulkPreview(null); }}
+                          className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            fabricBulkType === 'top' ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+                          }`}
+                        >
+                          Top / Print
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFabricBulkType('backing'); setFabricBulkPreview(null); }}
+                          className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            fabricBulkType === 'backing' ? 'bg-zinc-900 text-white' : 'text-zinc-500'
+                          }`}
+                        >
+                          Backing
+                        </button>
+                      </div>
+
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -1105,7 +1158,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                       {fabricBulkPreview && fabricBulkPreview.length > 0 && (
                         <div className="space-y-3 pt-2 border-t border-zinc-200">
                           <p className="text-[10px] font-black text-zinc-700 uppercase tracking-wider">
-                            Found {fabricBulkPreview.length} matching photo{fabricBulkPreview.length !== 1 ? 's' : ''} — review before importing:
+                            Found {fabricBulkPreview.length} matching photo{fabricBulkPreview.length !== 1 ? 's' : ''} — review before importing as {fabricBulkType === 'backing' ? 'backing fabrics' : 'top/print fabrics'}:
                           </p>
                           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-1">
                             {fabricBulkPreview.map((p: any, i: number) => (
@@ -1119,16 +1172,18 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
-                            <div className="space-y-1">
-                              <label className="text-[9px] text-zinc-450 font-black uppercase">Category to assign</label>
-                              <select
-                                value={fabricBulkCategory || categories[0] || ''}
-                                onChange={(e) => setFabricBulkCategory(e.target.value)}
-                                className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
-                              >
-                                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                              </select>
-                            </div>
+                            {fabricBulkType === 'top' && (
+                              <div className="space-y-1">
+                                <label className="text-[9px] text-zinc-450 font-black uppercase">Category to assign</label>
+                                <select
+                                  value={fabricBulkCategory || categories[0] || ''}
+                                  onChange={(e) => setFabricBulkCategory(e.target.value)}
+                                  className="w-full p-2 text-xs border border-zinc-250 rounded-lg bg-white"
+                                >
+                                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                              </div>
+                            )}
                             <div className="space-y-1">
                               <label className="text-[9px] text-zinc-450 font-black uppercase">Material</label>
                               <input
