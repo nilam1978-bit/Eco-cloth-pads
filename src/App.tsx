@@ -3416,8 +3416,8 @@ export default function App() {
   };
 
   // Add customized pad specs row to basket
-  const handleAddSizeOptionToBasket = (sizeId: string) => {
-    const qty = quantities[sizeId];
+  const handleAddSizeOptionToBasket = (sizeId: string, qtyOverride?: number) => {
+    const qty = qtyOverride !== undefined ? qtyOverride : quantities[sizeId];
     if (qty <= 0) return;
 
     const matchedSize = sizeOptions.find(s => s.id === sizeId)!;
@@ -6249,12 +6249,12 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        if ((quantities[sz.id] || 0) <= 0) {
+                                        const currentQtyForThisSize = quantities[sz.id] || 0;
+                                        const qtyToAdd = currentQtyForThisSize > 0 ? currentQtyForThisSize : 1;
+                                        if (currentQtyForThisSize <= 0) {
                                           setQuantities(prev => ({ ...prev, [sz.id]: 1 }));
                                         }
-                                        setTimeout(() => {
-                                          handleAddSizeOptionToBasket(sz.id);
-                                        }, 50);
+                                        handleAddSizeOptionToBasket(sz.id, qtyToAdd);
                                       }}
                                       className="px-3.5 py-1.5 text-[9.5px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 bg-[#8A5A87] hover:bg-[#724a70] text-white shadow-xs cursor-pointer active:scale-95"
                                     >
