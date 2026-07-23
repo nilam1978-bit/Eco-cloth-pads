@@ -1034,8 +1034,8 @@ export default function App() {
       })
       .then((data) => {
         if (data) {
-          if (Array.isArray(data.fabricsTop)) setFabricsTop(data.fabricsTop);
-          if (Array.isArray(data.fabricsBacking)) setFabricsBacking(data.fabricsBacking);
+          if (Array.isArray(data.fabricsTop) && data.fabricsTop.length > 0) setFabricsTop(data.fabricsTop);
+          if (Array.isArray(data.fabricsBacking) && data.fabricsBacking.length > 0) setFabricsBacking(data.fabricsBacking);
           if (Array.isArray(data.sizeOptions) && data.sizeOptions.length > 0) setSizeOptions(data.sizeOptions);
           if (Array.isArray(data.absorbencyOptions)) setAbsorbencyOptions(data.absorbencyOptions);
           if (Array.isArray(data.readyMadeStocks)) setReadyMadeStocks(data.readyMadeStocks);
@@ -2448,7 +2448,7 @@ export default function App() {
     setDesignerSize({ ...szObj, lengthInches: localL });
     setDesignerShape(localShape);
     setDesignerAbsorbency(ABSORBENCY_OPTIONS.find(a => a.name === localAbsName) || ABSORBENCY_OPTIONS[0]);
-    setDesignerBacking(fabricsBacking.find(f => f.name === localBackingName) || fabricsBacking[0]);
+    setDesignerBacking(fabricsBacking.find(f => f.name === localBackingName) || fabricsBacking[0] || FABRICS_BACKING[0]);
     setDesignerPrint(fabricsTop.find(f => f.name === localPrint) || NONE_FABRIC);
   };
 
@@ -2495,7 +2495,7 @@ export default function App() {
     setDesignerShape('sunglow');
     setDesignerAbsorbency(ABSORBENCY_OPTIONS[1]);
     if (fabricsBacking.length > 0) {
-      setDesignerBacking(fabricsBacking[0]);
+      setDesignerBacking(fabricsBacking[0] || FABRICS_BACKING[0]);
     }
     
     setQuantities({
@@ -2584,7 +2584,7 @@ export default function App() {
     setDesignerAbsorbency(ABSORBENCY_OPTIONS.find(a => a.name === localAbs) || ABSORBENCY_OPTIONS[0]);
 
     const localBacking = selectedNeedBackings[firstPrintId] || (szObj.id === 'liner' ? 'Printed Cotton' : szObj.id === 'light' ? 'White softshell fleece' : 'Black softshell fleece');
-    setDesignerBacking(fabricsBacking.find(b => b.name === localBacking) || fabricsBacking[0]);
+    setDesignerBacking(fabricsBacking.find(b => b.name === localBacking) || fabricsBacking[0] || FABRICS_BACKING[0]);
 
     setNeedStep(3);
   };
@@ -2622,7 +2622,7 @@ export default function App() {
     setDesignerAbsorbency(ABSORBENCY_OPTIONS.find(a => a.name === localAbs) || ABSORBENCY_OPTIONS[0]);
 
     const localBacking = selectedNeedBackings[printId] || (szObj.id === 'liner' ? 'Printed Cotton' : szObj.id === 'light' ? 'White softshell fleece' : 'Black softshell fleece');
-    setDesignerBacking(fabricsBacking.find(b => b.name === localBacking) || fabricsBacking[0]);
+    setDesignerBacking(fabricsBacking.find(b => b.name === localBacking) || fabricsBacking[0] || FABRICS_BACKING[0]);
   };
 
   const handleAddNeedOptionToBasket = (printId: string) => {
@@ -2857,13 +2857,13 @@ export default function App() {
 
   useEffect(() => {
     if (fabricsTop.length > 0 && designerPrint.id !== 'none' && !fabricsTop.some(f => f.id === designerPrint.id)) {
-      setDesignerPrint(fabricsTop[0]);
+      setDesignerPrint(fabricsTop[0] || FABRICS_TOP[0]);
     }
   }, [fabricsTop, designerPrint]);
 
   useEffect(() => {
     if (fabricsBacking.length > 0 && !fabricsBacking.some(f => f.id === designerBacking.id)) {
-      setDesignerBacking(fabricsBacking[0]);
+      setDesignerBacking(fabricsBacking[0] || FABRICS_BACKING[0]);
     }
   }, [fabricsBacking, designerBacking]);
 
@@ -5950,7 +5950,7 @@ export default function App() {
                           setDesignerShape(finalShape);
                         }
                         setDesignerAbsorbency(ABSORBENCY_OPTIONS.find(a => a.name === finalAbs) || ABSORBENCY_OPTIONS[0]);
-                        setDesignerBacking(fabricsBacking.find(f => f.name === finalBacking) || fabricsBacking[0]);
+                        setDesignerBacking(fabricsBacking.find(f => f.name === finalBacking) || fabricsBacking[0] || FABRICS_BACKING[0]);
                         setDesignerPrint(fabricsTop.find(f => f.name === localPrint) || NONE_FABRIC);
                       };
 
@@ -6824,7 +6824,7 @@ export default function App() {
                           setDesignerShape(finalShape);
                         }
                         setDesignerAbsorbency(ABSORBENCY_OPTIONS.find(a => a.name === finalAbs) || ABSORBENCY_OPTIONS[0]);
-                        setDesignerBacking(fabricsBacking.find(f => f.name === finalBacking) || fabricsBacking[0]);
+                        setDesignerBacking(fabricsBacking.find(f => f.name === finalBacking) || fabricsBacking[0] || FABRICS_BACKING[0]);
                         setDesignerPrint(printObj);
                       };
 
