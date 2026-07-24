@@ -38,6 +38,7 @@ interface AdminUnifiedProps {
   washingFaq: any[];
   setWashingFaq: (val: any[]) => void;
   blogPosts: any[];
+  feedback: any[];
   setBlogPosts: (val: any[]) => void;
 
   categories: string[];
@@ -91,7 +92,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   fabricsTop, setFabricsTop, fabricsBacking, setFabricsBacking,
   sizeOptions, setSizeOptions, absorbencyOptions, setAbsorbencyOptions,
   readyMadeStocks, setReadyMadeStocks, shapeOptions, setShapeOptions,
-  washingFaq, setWashingFaq, blogPosts, setBlogPosts,
+  washingFaq, setWashingFaq, blogPosts, setBlogPosts, feedback,
   categories, setCategories, editingCategoriesText, setEditingCategoriesText,
   shopLogoUrl, setShopLogoUrl, merchantEmail, setMerchantEmail, merchantPhone, setMerchantPhone,
   saveDatabase, handleUploadToR2, activePassword, setActivePassword,
@@ -104,7 +105,7 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
 }) => {
   // Navigation State
   const [activeSidebar, setActiveSidebar] = useState<'shop' | 'settings'>('shop');
-  const [activeShopTab, setActiveShopTab] = useState<'fabrics' | 'pads' | 'pricing' | 'faq' | 'blog' | 'categories'>('fabrics');
+  const [activeShopTab, setActiveShopTab] = useState<'fabrics' | 'pads' | 'pricing' | 'faq' | 'blog' | 'categories' | 'feedback'>('fabrics');
   const [activeSettingsTab, setActiveSettingsTab] = useState<'routing' | 'publishing' | 'database' | 'danger'>('routing');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -985,7 +986,8 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                   activeShopTab === 'pads' ? 'Ready-Made Pads' :
                   activeShopTab === 'pricing' ? 'Pricing & Sizes' :
                   activeShopTab === 'faq' ? 'FAQ Board' :
-                  activeShopTab === 'blog' ? 'Blog Posts' : 'Shop Categories'
+                  activeShopTab === 'blog' ? 'Blog Posts' :
+                  activeShopTab === 'feedback' ? 'Customer Feedback' : 'Shop Categories'
                 ) : (
                   activeSettingsTab === 'routing' ? 'Store Routing & Password' :
                   activeSettingsTab === 'publishing' ? 'GitHub Sync' :
@@ -1003,7 +1005,8 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                   { id: 'pricing', label: 'Pricing' },
                   { id: 'faq', label: 'FAQ' },
                   { id: 'blog', label: 'Blog' },
-                  { id: 'categories', label: 'Categories' }
+                  { id: 'categories', label: 'Categories' },
+                  { id: 'feedback', label: '💬 Feedback' }
                 ].map(t => (
                   <button
                     key={t.id}
@@ -2037,6 +2040,45 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                   </button>
                 </div>
               )}
+
+              {/* TAB 7: CUSTOMER FEEDBACK (IN SHOP LEVEL) */}
+              {activeShopTab === 'feedback' && (
+                <div className="space-y-3 max-w-2xl">
+                  {(!feedback || feedback.length === 0) ? (
+                    <div className="bg-white border border-zinc-200 rounded-3xl p-8 text-center text-xs text-zinc-450 shadow-3xs">
+                      No feedback submitted yet. This fills up as customers complete orders and answer the quick feedback popup.
+                    </div>
+                  ) : (
+                    feedback.map((fb: any) => (
+                      <div key={fb.id} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-3xs space-y-2 text-left">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <span key={n} className={fb.rating >= n ? 'text-amber-400' : 'text-zinc-200'}>★</span>
+                            ))}
+                          </div>
+                          <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
+                            {fb.inquiryNumber} • {fb.submittedAt ? new Date(fb.submittedAt).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                        {fb.easeOfOrdering && (
+                          <p className="text-xs text-zinc-700"><span className="font-bold">Ease of ordering:</span> {fb.easeOfOrdering}</p>
+                        )}
+                        {fb.wouldRecommend && (
+                          <p className="text-xs text-zinc-700"><span className="font-bold">Would recommend:</span> {fb.wouldRecommend}</p>
+                        )}
+                        {fb.whatCouldBeSimpler && (
+                          <p className="text-xs text-zinc-700"><span className="font-bold">What could be simpler:</span> {fb.whatCouldBeSimpler}</p>
+                        )}
+                        {fb.otherComments && (
+                          <p className="text-xs text-zinc-700"><span className="font-bold">Other comments:</span> {fb.otherComments}</p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
 
             </div>
           )}
