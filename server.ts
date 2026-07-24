@@ -146,6 +146,33 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+// API: Submit Order Feedback (public — customers submit this, no admin password needed)
+app.post('/api/feedback', async (req, res) => {
+  try {
+    const { inquiryNumber, rating, easeOfOrdering, whatCouldBeSimpler, wouldRecommend, otherComments } = req.body;
+    const db = await getDbData();
+    const existingFeedback = Array.isArray(db.feedback) ? db.feedback : [];
+
+    const newEntry = {
+      id: 'fb-' + Date.now(),
+      inquiryNumber: inquiryNumber || '',
+      rating: typeof rating === 'number' ? rating : null,
+      easeOfOrdering: easeOfOrdering || '',
+      whatCouldBeSimpler: whatCouldBeSimpler || '',
+      wouldRecommend: wouldRecommend || '',
+      otherComments: otherComments || '',
+      submittedAt: new Date().toISOString()
+    };
+
+    const updatedFeedback = [newEntry, ...existingFeedback];
+    await saveDbData({ ...db, feedback: updatedFeedback });
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Feedback submission error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 let s3Client: S3Client | null = null;
 let cachedAccessKeyId: string | undefined = undefined;
 let cachedSecretAccessKey: string | undefined = undefined;
