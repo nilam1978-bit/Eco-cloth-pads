@@ -1027,6 +1027,28 @@ export default function App() {
   const [activePassword, setActivePassword] = useState('wonderpads2026');
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
+  // The browser window itself should never scroll in this app — html/body/#root are
+  // all overflow:hidden by design, and only the inner <main> container scrolls.
+  // Rather than only correcting window scroll at specific transition moments (which
+  // can be defeated by late-loading images, focus events, or other unpredictable
+  // triggers), permanently enforce the invariant: if the window ever ends up
+  // scrolled for any reason, snap it back immediately.
+  useEffect(() => {
+    const snapWindowToTop = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+      if (document.documentElement && document.documentElement.scrollTop !== 0) {
+        document.documentElement.scrollTop = 0;
+      }
+      if (document.body && document.body.scrollTop !== 0) {
+        document.body.scrollTop = 0;
+      }
+    };
+    window.addEventListener('scroll', snapWindowToTop, { passive: true });
+    return () => window.removeEventListener('scroll', snapWindowToTop);
+  }, []);
+
   // Fetch live collections on component mount
   useEffect(() => {
     fetch('/api/db')
