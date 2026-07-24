@@ -63,6 +63,7 @@ import { WhyClothPadsPage } from './components/WhyClothPadsPage';
 import { ContactPage } from './components/ContactPage';
 import { BlogPage } from './components/BlogPage';
 import { FaqPage } from './components/FaqPage';
+import { FeedbackModal } from './components/FeedbackModal';
 import { UnifiedCard } from './components/UnifiedCard';
 
 // Category map to R2 tag folders / prefixes (case-insensitive keys)
@@ -822,6 +823,7 @@ export default function App() {
   const [shapeOptions, setShapeOptions] = useState<any[]>(SHAPE_OPTIONS);
   const [washingFaq, setWashingFaq] = useState<any[]>(WASHING_FAQ);
   const [blogPosts, setBlogPosts] = useState<any[]>([]);
+  const [feedback, setFeedback] = useState<any[]>([]);
 
   // Categories config editable by admin
   const DEFAULT_CATEGORIES = [
@@ -1042,6 +1044,7 @@ export default function App() {
           if (Array.isArray(data.shapeOptions)) setShapeOptions(data.shapeOptions);
           if (Array.isArray(data.washingFaq)) setWashingFaq(data.washingFaq);
           if (Array.isArray(data.blogPosts)) setBlogPosts(data.blogPosts);
+          if (Array.isArray(data.feedback)) setFeedback(data.feedback);
           if (data.settings) {
             if (Array.isArray(data.settings.categories)) {
               setCategories(data.settings.categories);
@@ -2754,6 +2757,12 @@ export default function App() {
       const headingEl = document.getElementById(targetId);
       if (headingEl) {
         headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Safety net: scrollIntoView can sometimes scroll an ancestor other than the
+        // intended inner container to bring the target into view. This app's window
+        // should never scroll, so clamp it back immediately.
+        window.scrollTo(0, 0);
+        if (document.body) document.body.scrollTop = 0;
+        if (document.documentElement) document.documentElement.scrollTop = 0;
       } else {
         // Fallback: wait a tick for React render cycle
         const timer = setTimeout(() => {
@@ -2956,26 +2965,31 @@ export default function App() {
   const [inquiryComments, setInquiryComments] = useState<string>('');
   const [isSubmittingInquiry, setIsSubmittingInquiry] = useState<boolean>(false);
   const [inquiryResult, setInquiryResult] = useState<any | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const shouldShowCheckout = isCheckoutPage || !!inquiryResult;
 
   // Reset scroll to top when toggling between checkout page, customize screens, or returning to design studio
   useEffect(() => {
-    // While inside an active bespoke step flow, the step-header scroll effect above
-    // already positions the page correctly for the current step. Forcing a scroll-to-top
-    // here at the same time causes the page to visibly snap/jump as the two fight each other.
-    // Only force-scroll-to-top for transitions this effect actually owns: entering/leaving
-    // checkout, or leaving the bespoke flow entirely.
-    if (selectedOptionTab === 'bespoke' && customFlow) {
-      return;
-    }
-
-    const forceScrollToTop = () => {
-      if (containerRef.current) {
-        containerRef.current.scrollTop = 0;
-      }
+    // The window itself should never scroll in this app (html/body/#root are all
+    // overflow:hidden by design) — always correct it back to 0 regardless of flow,
+    // in case scrollIntoView or anything else nudges it even slightly.
+    const forceWindowScrollToTop = () => {
       window.scrollTo(0, 0);
       if (document.body) document.body.scrollTop = 0;
       if (document.documentElement) document.documentElement.scrollTop = 0;
+    };
+
+    // While inside an active bespoke step flow, the step-header scroll effect above
+    // already positions the INNER container correctly for the current step. Forcing
+    // containerRef.scrollTop to 0 here at the same time causes the page to visibly
+    // snap/jump as the two fight each other — so skip only that part during the flow.
+    const skipContainerReset = selectedOptionTab === 'bespoke' && customFlow;
+
+    const forceScrollToTop = () => {
+      if (!skipContainerReset && containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+      forceWindowScrollToTop();
     };
 
     // 1. Scroll immediately on state change
@@ -4128,7 +4142,7 @@ export default function App() {
     return msg;
   };
 
-  const handleSendVia = (method: 'whatsapp' | 'email') => {
+  const handleSendVia = (method: 'whatsapp' | 'email' | 'instagram') => {
     if (cart.length === 0) return;
     if (!inquiryName.trim()) {
       showToast("Please fill in YOUR NAME.", 'error');
@@ -4174,6 +4188,14 @@ export default function App() {
         const destination = numericOnly || "6583397556"; 
         const waUrl = `https://wa.me/${destination}?text=${encodeURIComponent(textMsg)}`;
         window.open(waUrl, '_blank');
+      } else if (method === 'instagram') {
+        // Instagram doesn't support pre-filling DM text via URL, so copy the order
+        // to the clipboard and let the person paste it once the DM thread opens.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(textMsg).catch(() => {});
+        }
+        showToast("Order copied! Paste it into the DM that just opened.", 'success');
+        window.open('https://ig.me/m/ecoclothpad', '_blank');
       } else {
         const destEmail = merchantEmail.trim() || 'ecowonderpads@gmail.com';
         const mailtoUrl = `mailto:${destEmail}?subject=${encodeURIComponent("Wonder Pads Order Receipt Inquiry " + generatedInquiryNum)}&body=${encodeURIComponent(textMsg)}`;
@@ -4181,7 +4203,8 @@ export default function App() {
       }
 
       setIsSubmittingInquiry(false);
-      saveCart([]); 
+      saveCart([]);
+      setShowFeedbackModal(true);
     }, 600);
   };
 
@@ -7502,7 +7525,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                         <button
                           type="button"
                           onClick={() => handleSendVia('whatsapp')}
@@ -7510,7 +7533,17 @@ export default function App() {
                           className="py-3 bg-[#00a884] hover:bg-[#008f72] text-white text-[11px] font-bold rounded-xl tracking-wider uppercase flex justify-center items-center gap-1.5 shadow-sm transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           <MessageCircle className="h-4 w-4 fill-white text-[#00a884]" />
-                          <span>Send via WhatsApp</span>
+                          <span>WhatsApp</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSendVia('instagram')}
+                          disabled={isSubmittingInquiry}
+                          className="py-3 bg-gradient-to-br from-[#f09433] via-[#dc2743] to-[#bc1888] hover:opacity-90 text-white text-[11px] font-bold rounded-xl tracking-wider uppercase flex justify-center items-center gap-1.5 shadow-sm transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Instagram className="h-4 w-4 text-white" />
+                          <span>Instagram DM</span>
                         </button>
 
                         <button
@@ -7520,7 +7553,7 @@ export default function App() {
                           className="py-3 bg-[#738a7c] hover:bg-[#62776a] text-white text-[11px] font-bold rounded-xl tracking-wider uppercase flex justify-center items-center gap-1.5 shadow-sm transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           <Mail className="h-4 w-4 text-white" />
-                          <span>Send via Email</span>
+                          <span>Email</span>
                         </button>
                       </div>
 
@@ -7957,6 +7990,16 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
+        {/* POST-ORDER FEEDBACK MODAL                                 */}
+        {/* ======================================================== */}
+        {showFeedbackModal && inquiryResult && (
+          <FeedbackModal
+            inquiryNumber={inquiryResult.inquiryNumber}
+            onClose={() => setShowFeedbackModal(false)}
+          />
+        )}
+
+        {/* ======================================================== */}
         {/* MODAL WINDOW MANUAL CARE GUIDELINE                        */}
         {/* ======================================================== */}
         {showCareModal && (
@@ -8250,6 +8293,7 @@ export default function App() {
                   washingFaq={washingFaq}
                   setWashingFaq={setWashingFaq}
                   blogPosts={blogPosts}
+                  feedback={feedback}
                   setBlogPosts={setBlogPosts}
                   categories={categories}
                   setCategories={setCategories}
