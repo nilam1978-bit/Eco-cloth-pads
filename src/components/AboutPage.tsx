@@ -14,8 +14,9 @@ const BELIEFS = [
 export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   return (
     <div className="w-full space-y-8 sm:space-y-12 animate-fadeIn text-left">
-      {/* Header Banner — pink accent */}
-      <div className="-mx-4 sm:-mx-8 -mt-3 bg-[#FADCE1] border-b border-rose-200/40 px-6 py-12 sm:py-16 text-center relative overflow-hidden rounded-b-3xl shadow-3xs animate-fadeIn">
+      {/* Header Banner — pink accent, with a soft illustrated wash for character */}
+      <div className="-mx-4 sm:-mx-8 -mt-3 bg-[#FADCE1] border-b border-rose-200/40 px-6 py-12 sm:py-16 text-center relative overflow-hidden rounded-b-3xl shadow-3xs animate-fadeIn bg-[url('/bg-pattern-mobile.jpg')] md:bg-[url('/bg-pattern-desktop.jpg')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-[#FADCE1]/72 pointer-events-none" />
         <button
           onClick={() => onNavigate('/')}
           className="absolute top-4 right-4 sm:top-6 sm:right-6 h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-white/90 hover:bg-white text-zinc-800 flex items-center justify-center font-bold text-base shadow-sm border border-zinc-200 transition-all active:scale-95 cursor-pointer z-20"
