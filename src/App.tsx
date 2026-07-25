@@ -2650,11 +2650,11 @@ export default function App() {
     setDesignerBacking(fabricsBacking.find(b => b.name === localBacking) || fabricsBacking[0] || FABRICS_BACKING[0]);
   };
 
-  const handleAddNeedOptionToBasket = (printId: string) => {
-    const qty = needQuantities[printId] || 0;
+  const handleAddNeedOptionToBasket = (printId: string, qtyOverride?: number) => {
+    const qty = qtyOverride !== undefined ? qtyOverride : (needQuantities[printId] || 0);
     if (qty <= 0) return;
 
-    const matchedSize = sizeOptions.find(s => s.id === selectedNeedAbsorbency)!;
+    const matchedSize = sizeOptions.find(s => s.id === selectedNeedAbsorbency) || sizeOptions[1] || SIZE_OPTIONS[1];
     const printObj = fabricsTop.find(f => f.id === printId) || NONE_FABRIC;
 
     const activeLength = selectedNeedLengths[printId] || matchedSize.lengthInches;
@@ -4345,7 +4345,7 @@ export default function App() {
 
         {/* LOGO & BRAND PAGE HEADER */}
         {currentPath !== '/sizing-guide' && currentPath !== '/benefits' && currentPath !== '/about' && currentPath !== '/why-cloth-pads' && currentPath !== '/contact' && currentPath !== '/blog' && currentPath !== '/faq' && !isRtsPage && (
-          <header className="relative bg-[#FDF7FB]/85 backdrop-blur-md border-b border-brand-taupe/15 py-4 px-4 sm:px-8 shrink-0 z-35 shadow-3xs">
+          <header className="relative bg-[#FDF7FB] border-b border-brand-taupe/15 py-4 px-4 sm:px-8 shrink-0 z-35 shadow-3xs">
             <div className="max-w-7xl mx-auto flex justify-between items-center w-full gap-4">
               <div className="flex items-center gap-2.5 shrink-0">
                 <button 
@@ -7167,12 +7167,12 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        if ((needQuantities[activePrintIdLocal] || 0) <= 0) {
+                                        const currentQtyForThisPrint = needQuantities[activePrintIdLocal] || 0;
+                                        const qtyToAdd = currentQtyForThisPrint > 0 ? currentQtyForThisPrint : 1;
+                                        if (currentQtyForThisPrint <= 0) {
                                           setNeedQuantities(prev => ({ ...prev, [activePrintIdLocal]: 1 }));
                                         }
-                                        setTimeout(() => {
-                                          handleAddNeedOptionToBasket(activePrintIdLocal);
-                                        }, 50);
+                                        handleAddNeedOptionToBasket(activePrintIdLocal, qtyToAdd);
                                       }}
                                       className="px-3.5 py-1.5 text-[9.5px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-1.5 bg-[#8A5A87] hover:bg-[#724a70] text-white shadow-xs cursor-pointer active:scale-95"
                                     >
@@ -7610,7 +7610,11 @@ export default function App() {
                 )
               ) : (
                 /* INQUIRY SUCCESS RECEIPT BILLBOARD CARD */
-                <div className="bg-[#f2f6f3] border border-emerald-100 rounded-3xl p-5 text-center space-y-4 animate-scaleIn select-text font-sans">
+                <div
+                  className="bg-[#f2f6f3] border border-emerald-100 rounded-3xl p-5 text-center space-y-4 animate-scaleIn select-text font-sans bg-[url('/bg-pattern-mobile.jpg')] md:bg-[url('/bg-pattern-desktop.jpg')] bg-cover bg-center relative"
+                >
+                  <div className="absolute inset-0 bg-[#f2f6f3]/78 rounded-3xl pointer-events-none" />
+                  <div className="relative">
                   <div className="h-10 w-10 bg-brand-moss text-white rounded-full flex items-center justify-center text-lg mx-auto shadow-sm">
                     ✓
                   </div>
@@ -7708,6 +7712,7 @@ export default function App() {
                       Return to Design Studio Home
                     </button>
                   </div>
+                  </div>
                 </div>
               )}
 
@@ -7718,8 +7723,9 @@ export default function App() {
           )}
 
           {/* BEAUTIFUL DESIGNER BRAND FOOTER & SOCIAL LINKS */}
-          <footer className="mt-8 pt-10 pb-8 px-6 bg-brand-pink-light/60 border-t border-brand-pink/35 rounded-t-[32px] -mx-4 sm:-mx-8">
-            <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 text-left">
+          <footer className="mt-8 pt-10 pb-8 px-6 bg-brand-pink-light/60 border-t border-brand-pink/35 rounded-t-[32px] -mx-4 sm:-mx-8 relative overflow-hidden bg-[url('/bg-pattern-mobile.jpg')] md:bg-[url('/bg-pattern-desktop.jpg')] bg-cover bg-center">
+            <div className="absolute inset-0 bg-brand-pink-light/75 pointer-events-none" />
+            <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 text-left relative z-10">
               {/* Brand blurb column */}
               <div className="space-y-2.5">
                 <h4 className="font-serif text-base font-black tracking-wide text-brand-moss">
