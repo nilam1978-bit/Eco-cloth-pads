@@ -5390,71 +5390,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Elegant card for the progress indicators */}
-                <div className="bg-[#FFFDFE] rounded-3xl p-5 border border-brand-pink/50 text-left space-y-1.5 shadow-3xs">
-                  <span className="text-[9px] font-black tracking-widest text-[#C54B64] uppercase block">
-                    Your Customizer Progress
-                  </span>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    {[
-                      { s: 1, label: '1. Choose Fabric' },
-                      { s: 2, label: '2. Choose Sizes' },
-                      { s: 3, label: '3. Configure Specs' }
-                    ].map((stepItem) => {
-                      const isActive = fabricStep === stepItem.s;
-                      const isCompleted = fabricStep > stepItem.s;
-                      
-                      // Disable if:
-                      // - Step is ahead of current fabricStep
-                      // - Step is 2 or 3 but no print is selected
-                      // - Step is 3 but no bespoke sizes are selected
-                      const isStepDisabled = 
-                        stepItem.s > fabricStep || 
-                        (stepItem.s >= 2 && designerPrint.id === 'none') || 
-                        (stepItem.s === 3 && selectedBespokeSizes.length === 0);
-
-                      return (
-                        <button
-                          key={stepItem.s}
-                          type="button"
-                          disabled={isStepDisabled}
-                          onClick={() => {
-                            setFabricStep(stepItem.s);
-                            if (containerRef.current) {
-                              containerRef.current.scrollTop = 0;
-                            }
-                            window.scrollTo(0, 0);
-                          }}
-                          className={`text-center space-y-1 group transition-all pb-1 ${
-                            !isStepDisabled ? 'cursor-pointer' : 'cursor-default opacity-60'
-                          }`}
-                        >
-                          {/* Progress Line */}
-                          <div className={`h-1.5 rounded-full transition-all duration-300 ${
-                            isActive 
-                              ? 'bg-[#C54B64]' 
-                              : isCompleted 
-                                ? 'bg-[#922B50]' 
-                                : 'bg-zinc-200'
-                          }`} />
-                          
-                          {/* Label */}
-                          <p className={`text-[8px] xs:text-[9.5px] font-black uppercase tracking-wider block transition-colors ${
-                            isActive 
-                              ? 'text-[#C54B64]' 
-                              : isCompleted 
-                                ? 'text-[#922B50]' 
-                                : 'text-zinc-400'
-                          }`}>
-                            <span className="hidden xs:inline">{stepItem.label}</span>
-                            <span className="xs:hidden">{stepItem.s}</span>
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* STEP CONTENT SWITCHER */}
                 {fabricStep === 1 && (
                   <div className="space-y-6 animate-fadeIn">
@@ -5601,10 +5536,10 @@ export default function App() {
                                         setExpandedBespokeCardId(null);
                                         setTimeout(() => {
                                           setFabricStep(2);
-                                          if (containerRef.current) {
-                                            containerRef.current.scrollTop = 0;
-                                          }
-                                          window.scrollTo(0, 0);
+                                          setTimeout(() => {
+                                            const el = document.getElementById('step-fabric-flow');
+                                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                          }, 50);
                                         }, 350);
                                       }
                                     }}
@@ -5730,6 +5665,10 @@ export default function App() {
                             type="button"
                             onClick={() => {
                               setFabricStep(2);
+                              setTimeout(() => {
+                                const el = document.getElementById('step-fabric-flow');
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }, 50);
                             }}
                             className="w-full sm:w-auto bg-[#8a3c2b] hover:bg-[#743224] text-white text-xs font-black py-3.5 px-6 rounded-full uppercase tracking-widest shadow-md transition-all duration-200 hover:scale-102 active:scale-98 cursor-pointer flex items-center justify-center gap-2"
                           >
@@ -5876,6 +5815,10 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             setFabricStep(1);
+                            setTimeout(() => {
+                              const el = document.getElementById('step-fabric-flow');
+                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }, 50);
                           }}
                           className="w-full sm:w-auto bg-white hover:bg-zinc-50 text-zinc-500 text-xs font-black py-3.5 px-6 rounded-full uppercase tracking-widest shadow-3xs border border-zinc-200 transition-all duration-200 hover:scale-102 active:scale-98 cursor-pointer flex items-center justify-center gap-1.5"
                         >
@@ -6314,6 +6257,10 @@ export default function App() {
                                 type="button"
                                 onClick={() => {
                                   setFabricStep(2);
+                                  setTimeout(() => {
+                                    const el = document.getElementById('step-fabric-flow');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                  }, 50);
                                 }}
                                 className="bg-white hover:bg-zinc-50 text-zinc-500 text-[10px] font-black py-2 px-5 rounded-full uppercase tracking-wider shadow-3xs border border-zinc-200 transition-all duration-200 hover:scale-101 active:scale-99 cursor-pointer flex items-center justify-center gap-1"
                               >
@@ -6423,55 +6370,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Elegant card for the progress indicators */}
-                <div className="bg-[#FAFDFB] rounded-3xl p-5 border border-[#CBE5D2]/50 text-left space-y-1.5 shadow-3xs">
-                  <span className="text-[9px] font-black tracking-widest text-[#224832] uppercase block">
-                    Your Customizer Progress
-                  </span>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    {[
-                      { s: 1, label: '1. Fit & Specs' },
-                      { s: 2, label: '2. Topper Print' },
-                      { s: 3, label: '3. Add to Basket' }
-                    ].map((stepItem) => {
-                      const isActive = needStep === stepItem.s;
-                      const isCompleted = needStep > stepItem.s;
-                      return (
-                        <button
-                          key={stepItem.s}
-                          type="button"
-                          disabled={stepItem.s > needStep}
-                          onClick={() => setNeedStep(stepItem.s)}
-                          className={`text-center space-y-1 group transition-all pb-1 ${
-                            stepItem.s <= needStep ? 'cursor-pointer' : 'cursor-default opacity-60'
-                          }`}
-                        >
-                          {/* Progress Line */}
-                          <div className={`h-1.5 rounded-full transition-all duration-300 ${
-                            isActive 
-                              ? 'bg-[#224832]' 
-                              : isCompleted 
-                                ? 'bg-brand-moss' 
-                                : 'bg-zinc-200'
-                          }`} />
-                          
-                          {/* Label */}
-                          <p className={`text-[8px] xs:text-[9.5px] font-black uppercase tracking-wider block transition-colors ${
-                            isActive 
-                              ? 'text-[#224832]' 
-                              : isCompleted 
-                                ? 'text-brand-moss' 
-                                : 'text-zinc-400'
-                          }`}>
-                            <span className="hidden xs:inline">{stepItem.label}</span>
-                            <span className="xs:hidden">{stepItem.s}</span>
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* STEP CONTENT SWITCHER */}
                 {needStep === 1 && (
                   <div className="space-y-6 animate-fadeIn">
@@ -6535,6 +6433,10 @@ export default function App() {
                               });
 
                               setNeedStep(2);
+                              setTimeout(() => {
+                                const el = document.getElementById('step-need-flow');
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }, 50);
                             }}
                             className={`rounded-2xl p-4.5 border-2 transition-all duration-300 cursor-pointer flex flex-col justify-between select-none relative ${
                               isSelected
@@ -6588,7 +6490,13 @@ export default function App() {
                       
                       <button
                         type="button"
-                        onClick={() => setNeedStep(1)}
+                        onClick={() => {
+                          setNeedStep(1);
+                          setTimeout(() => {
+                            const el = document.getElementById('step-need-flow');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }, 50);
+                        }}
                         className="text-[10px] font-black text-[#8A5A87] hover:underline uppercase tracking-wider bg-[#8A5A87]/5 hover:bg-[#8A5A87]/10 px-3 py-1.5 rounded-full shrink-0"
                       >
                         ← Back
@@ -6787,7 +6695,13 @@ export default function App() {
                             <p className="text-sm font-bold text-zinc-500">No fabric pattern selected yet. Please go back to Step 2 to choose at least one!</p>
                             <button
                               type="button"
-                              onClick={() => setNeedStep(2)}
+                              onClick={() => {
+                                setNeedStep(2);
+                                setTimeout(() => {
+                                  const el = document.getElementById('step-need-flow');
+                                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 50);
+                              }}
                               className="mt-4 px-6 py-2.5 bg-[#8A5A87] text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md"
                             >
                               Go to Step 2
@@ -7187,6 +7101,10 @@ export default function App() {
                                 type="button"
                                 onClick={() => {
                                   setNeedStep(2);
+                                  setTimeout(() => {
+                                    const el = document.getElementById('step-need-flow');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                  }, 50);
                                 }}
                                 className="bg-white hover:bg-zinc-50 text-zinc-500 text-[10px] font-black py-2 px-5 rounded-full uppercase tracking-wider shadow-3xs border border-zinc-200 transition-all duration-200 hover:scale-101 active:scale-99 cursor-pointer flex items-center justify-center gap-1"
                               >
@@ -7780,7 +7698,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="max-w-5xl mx-auto border-t border-brand-pink/30 mt-8 pt-6 flex flex-col items-center gap-4 text-center">
+            <div className="max-w-5xl mx-auto border-t border-brand-pink/30 mt-8 pt-6 flex flex-col items-center gap-4 text-center relative z-10">
               {/* Centered Green WhatsApp Tab */}
               <a
                 href={`https://wa.me/${(() => {
