@@ -57,6 +57,7 @@ const DB_KEYS = [
   'shapeOptions',
   'washingFaq',
   'blogPosts',
+  'feedback',
   'settings'
 ];
 
@@ -255,7 +256,7 @@ export async function getDbData(): Promise<any> {
     // First, verify and perform migration if Firestore is newly provisioned
     await autoMigrateIfEmpty(firestore, localData);
 
-    // Fetch all 9 documents in parallel
+    // Fetch all documents in parallel
     const docPromises = DB_KEYS.map((key) => collRef.doc(key).get());
     const snapshots = await Promise.all(docPromises);
 
