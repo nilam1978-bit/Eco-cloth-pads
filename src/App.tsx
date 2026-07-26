@@ -1027,28 +1027,6 @@ export default function App() {
   const [activePassword, setActivePassword] = useState('wonderpads2026');
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
-  // The browser window itself should never scroll in this app — html/body/#root are
-  // all overflow:hidden by design, and only the inner <main> container scrolls.
-  // Rather than only correcting window scroll at specific transition moments (which
-  // can be defeated by late-loading images, focus events, or other unpredictable
-  // triggers), permanently enforce the invariant: if the window ever ends up
-  // scrolled for any reason, snap it back immediately.
-  useEffect(() => {
-    const snapWindowToTop = () => {
-      if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
-      }
-      if (document.documentElement && document.documentElement.scrollTop !== 0) {
-        document.documentElement.scrollTop = 0;
-      }
-      if (document.body && document.body.scrollTop !== 0) {
-        document.body.scrollTop = 0;
-      }
-    };
-    window.addEventListener('scroll', snapWindowToTop, { passive: true });
-    return () => window.removeEventListener('scroll', snapWindowToTop);
-  }, []);
-
   // Fetch live collections on component mount
   useEffect(() => {
     fetch('/api/db')
@@ -2425,13 +2403,32 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const homeScrollPositionRef = useRef<number>(0);
+
   const navigateTo = (path: string) => {
+    // Remember where we were on the homepage before leaving it, so coming back
+    // (e.g. closing the Sizing & Pricing guide) restores that position instead
+    // of always jumping to the top.
+    if (currentPath === '/' && containerRef.current) {
+      homeScrollPositionRef.current = containerRef.current.scrollTop;
+    }
+
     window.history.pushState(null, '', path);
     setCurrentPath(path);
-    if (containerRef.current) {
-      containerRef.current.scrollTop = 0;
+
+    if (path === '/') {
+      // Restore on the next frame, after the landing content has re-rendered.
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = homeScrollPositionRef.current;
+        }
+      });
+    } else {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+      window.scrollTo(0, 0);
     }
-    window.scrollTo(0, 0);
   };
 
   const goToBespokeStep3WithSizes = (sizesList: string[]) => {
@@ -2779,12 +2776,6 @@ export default function App() {
       const headingEl = document.getElementById(targetId);
       if (headingEl) {
         headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // Safety net: scrollIntoView can sometimes scroll an ancestor other than the
-        // intended inner container to bring the target into view. This app's window
-        // should never scroll, so clamp it back immediately.
-        window.scrollTo(0, 0);
-        if (document.body) document.body.scrollTop = 0;
-        if (document.documentElement) document.documentElement.scrollTop = 0;
       } else {
         // Fallback: wait a tick for React render cycle
         const timer = setTimeout(() => {
@@ -5062,9 +5053,6 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             setShowCareModal(true);
-                            if (containerRef.current) {
-                              containerRef.current.scrollTop = 0;
-                            }
                           }}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-950 rounded-lg text-[10.5px] sm:text-xs font-bold uppercase tracking-wider border border-amber-200 transition-all hover:scale-[1.02] active:scale-98 cursor-pointer select-none"
                         >
@@ -7724,7 +7712,7 @@ export default function App() {
 
           {/* BEAUTIFUL DESIGNER BRAND FOOTER & SOCIAL LINKS */}
           <footer className="mt-8 pt-10 pb-8 px-6 bg-brand-pink-light/60 border-t border-brand-pink/35 rounded-t-[32px] -mx-4 sm:-mx-8 relative overflow-hidden bg-[url('/bg-pattern-mobile.jpg')] md:bg-[url('/bg-pattern-desktop.jpg')] bg-cover bg-center">
-            <div className="absolute inset-0 bg-brand-pink-light/75 pointer-events-none" />
+            <div className="absolute inset-0 bg-brand-pink-light/85 pointer-events-none" />
             <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6 text-left relative z-10">
               {/* Brand blurb column */}
               <div className="space-y-2.5">
@@ -7812,7 +7800,7 @@ export default function App() {
                   href="https://instagram.com/ecoclothpad"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-rose-600 hover:border-rose-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-300 text-zinc-700 hover:text-rose-600 hover:border-rose-200 flex items-center justify-center transition-all duration-300 shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                   title="Follow Wonder Pads on Instagram"
                 >
                   <Instagram className="h-4.5 w-4.5" />
@@ -7821,7 +7809,7 @@ export default function App() {
                   href="https://facebook.com/ecoclothpad"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-blue-600 hover:border-blue-150 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-300 text-zinc-700 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center transition-all duration-300 shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                   title="Follow Wonder Pads on Facebook"
                 >
                   <Facebook className="h-4.5 w-4.5" />
@@ -7830,7 +7818,7 @@ export default function App() {
                   href="https://tiktok.com/@ecoclothpad"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="h-9 w-9 rounded-full bg-white border border-zinc-200 text-zinc-650 hover:text-black hover:border-zinc-400 flex items-center justify-center transition-all duration-300 shadow-4xs hover:scale-105 active:scale-95 cursor-pointer"
+                  className="h-9 w-9 rounded-full bg-white border border-zinc-300 text-zinc-700 hover:text-black hover:border-zinc-400 flex items-center justify-center transition-all duration-300 shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                   title="Follow Wonder Pads on TikTok"
                 >
                   <svg className="h-4.5 w-4.5 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
