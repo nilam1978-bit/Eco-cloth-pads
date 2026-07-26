@@ -4179,6 +4179,14 @@ export default function App() {
 
     const textMsg = formatOrderMessage();
 
+    // For Instagram, write to clipboard IMMEDIATELY, synchronously, within this click
+    // handler — the Clipboard API can silently refuse to write once it's outside the
+    // original user-gesture call stack (e.g. inside a setTimeout), which is why the
+    // copy wasn't landing before.
+    if (method === 'instagram' && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textMsg).catch(() => {});
+    }
+
     setTimeout(() => {
       const generatedInquiryNum = `WP-${Math.floor(100000 + Math.random() * 900000)}`;
       setInquiryResult({
@@ -4189,6 +4197,12 @@ export default function App() {
         items: [...cart],
         estimatedTotal: cart.reduce((sum, item) => sum + item.totalPrice, 0)
       });
+
+      // Show the feedback modal right away, BEFORE opening WhatsApp/Email/Instagram —
+      // those often hand off to a completely different app on mobile, and the person
+      // may never think to switch back to the browser tab afterward. Showing it first
+      // means they see it while still on this page, before their attention leaves.
+      setShowFeedbackModal(true);
 
       if (method === 'whatsapp') {
         let destPhone = merchantPhone.trim() || '6583397556';
@@ -4202,11 +4216,6 @@ export default function App() {
         const waUrl = `https://wa.me/${destination}?text=${encodeURIComponent(textMsg)}`;
         window.open(waUrl, '_blank');
       } else if (method === 'instagram') {
-        // Instagram doesn't support pre-filling DM text via URL, so copy the order
-        // to the clipboard and let the person paste it once the DM thread opens.
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(textMsg).catch(() => {});
-        }
         showToast("Order copied! Paste it into the DM that just opened.", 'success');
         window.open('https://ig.me/m/ecoclothpad', '_blank');
       } else {
@@ -4217,7 +4226,6 @@ export default function App() {
 
       setIsSubmittingInquiry(false);
       saveCart([]);
-      setShowFeedbackModal(true);
     }, 600);
   };
 
