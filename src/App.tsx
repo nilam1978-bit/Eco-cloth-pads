@@ -2757,36 +2757,32 @@ export default function App() {
         );
   };
 
-  // Scroll to active sub-step heading when fabricStep or needStep changes
+  // Keep the workflow banner visible whenever its internal step changes.
+  // Previously this effect scrolled directly to each small step heading.
+  // That ran after the button's workflow scroll and pushed the large branded
+  // header above the viewport, which made it look cut off on Step 2.
   useEffect(() => {
     if (selectedOptionTab !== 'bespoke') return;
-    
-    let targetId = '';
-    if (customFlow === 'fabric') {
-      if (fabricStep === 1) targetId = 'fabric-step-1-header';
-      else if (fabricStep === 2) targetId = 'fabric-step-2-header';
-      else if (fabricStep === 3) targetId = 'fabric-step-3-header';
-    } else if (customFlow === 'size') {
-      if (needStep === 1) targetId = 'need-step-1-header';
-      else if (needStep === 2) targetId = 'need-step-2-header';
-      else if (needStep === 3) targetId = 'need-step-3-header';
-    }
-    
-    if (targetId) {
-      const headingEl = document.getElementById(targetId);
-      if (headingEl) {
-        headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else {
-        // Fallback: wait a tick for React render cycle
-        const timer = setTimeout(() => {
-          const el = document.getElementById(targetId);
-          if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 80);
-        return () => clearTimeout(timer);
-      }
-    }
+
+    const targetId = customFlow === 'fabric'
+      ? 'step-fabric-flow'
+      : customFlow === 'size'
+        ? 'step-need-flow'
+        : '';
+    if (!targetId) return;
+
+    const timer = window.setTimeout(() => {
+      const container = containerRef.current;
+      const workflow = document.getElementById(targetId);
+      if (!container || !workflow) return;
+
+      const containerRect = container.getBoundingClientRect();
+      const workflowRect = workflow.getBoundingClientRect();
+      const targetTop = container.scrollTop + workflowRect.top - containerRect.top;
+      container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+    }, 60);
+
+    return () => window.clearTimeout(timer);
   }, [fabricStep, needStep, selectedOptionTab, customFlow]);
 
   // Reset configurator state when exiting customizer entirely
