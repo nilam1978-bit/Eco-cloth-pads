@@ -305,21 +305,35 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
   // Fabric Bulk Import — Step 1: preview matches, no DB writes yet
   const handlePreviewFabricBulkImport = async () => {
     if (!fabricBulkImportTag.trim()) return;
+    const keyword = fabricBulkImportTag.trim();
     try {
       setIsFabricBulkImporting(true);
-      const response = await fetch('/api/lookbook-photos');
-      if (response.ok) {
-        const data = await response.json();
-        const photos = (data.photos || []).map((ph: any) => ({
-          filename: ph.filename, url: ph.secure_url
-        }));
-        const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(fabricBulkImportTag.toLowerCase().trim()));
-        if (filtered.length === 0) {
-          alert(`No photos found matching keyword "${fabricBulkImportTag}".`);
-          setFabricBulkPreview(null);
-        } else {
-          setFabricBulkPreview(filtered);
+
+      // First try matching by FOLDER name (how photos are actually organized in R2) —
+      // this is a fast, server-side prefix search and matches the real workflow.
+      const folderResponse = await fetch(`/api/lookbook-photos?tag=${encodeURIComponent(keyword)}`);
+      let filtered: any[] = [];
+      if (folderResponse.ok) {
+        const folderData = await folderResponse.json();
+        filtered = (folderData.photos || []).map((ph: any) => ({ filename: ph.filename, url: ph.secure_url }));
+      }
+
+      // Fall back to searching every photo's FILENAME text, in case the keyword
+      // isn't a folder name but does appear in individual filenames.
+      if (filtered.length === 0) {
+        const allResponse = await fetch('/api/lookbook-photos');
+        if (allResponse.ok) {
+          const allData = await allResponse.json();
+          const allPhotos = (allData.photos || []).map((ph: any) => ({ filename: ph.filename, url: ph.secure_url }));
+          filtered = allPhotos.filter((p: any) => p.filename.toLowerCase().includes(keyword.toLowerCase()));
         }
+      }
+
+      if (filtered.length === 0) {
+        alert(`No photos found matching "${keyword}" — checked both the folder name and individual filenames.`);
+        setFabricBulkPreview(null);
+      } else {
+        setFabricBulkPreview(filtered);
       }
     } catch (err: any) {
       setAdminError('Preview failed: ' + err.message);
@@ -1395,21 +1409,34 @@ export const AdminUnified: React.FC<AdminUnifiedProps> = ({
                           disabled={isRtsBulkImporting}
                           onClick={async () => {
                             if (!rtsBulkImportTag.trim()) return;
+                            const keyword = rtsBulkImportTag.trim();
                             try {
                               setIsRtsBulkImporting(true);
-                              const response = await fetch('/api/lookbook-photos');
-                              if (response.ok) {
-                                const data = await response.json();
-                                const photos = (data.photos || []).map((ph: any) => ({
-                                  filename: ph.filename, url: ph.secure_url
-                                }));
-                                const filtered = photos.filter((p: any) => p.filename.toLowerCase().includes(rtsBulkImportTag.toLowerCase().trim()));
-                                if (filtered.length === 0) {
-                                  alert(`No photos found matching folder keyword "${rtsBulkImportTag}".`);
-                                  setRtsBulkPreview(null);
-                                } else {
-                                  setRtsBulkPreview(filtered);
+
+                              // First try matching by FOLDER name (how photos are actually
+                              // organized in R2) — fast, server-side prefix search.
+                              const folderResponse = await fetch(`/api/lookbook-photos?tag=${encodeURIComponent(keyword)}`);
+                              let filtered: any[] = [];
+                              if (folderResponse.ok) {
+                                const folderData = await folderResponse.json();
+                                filtered = (folderData.photos || []).map((ph: any) => ({ filename: ph.filename, url: ph.secure_url }));
+                              }
+
+                              // Fall back to searching every photo's FILENAME text.
+                              if (filtered.length === 0) {
+                                const allResponse = await fetch('/api/lookbook-photos');
+                                if (allResponse.ok) {
+                                  const allData = await allResponse.json();
+                                  const allPhotos = (allData.photos || []).map((ph: any) => ({ filename: ph.filename, url: ph.secure_url }));
+                                  filtered = allPhotos.filter((p: any) => p.filename.toLowerCase().includes(keyword.toLowerCase()));
                                 }
+                              }
+
+                              if (filtered.length === 0) {
+                                alert(`No photos found matching "${keyword}" — checked both the folder name and individual filenames.`);
+                                setRtsBulkPreview(null);
+                              } else {
+                                setRtsBulkPreview(filtered);
                               }
                             } catch (err: any) {
                               setAdminError('Preview failed: ' + err.message);
